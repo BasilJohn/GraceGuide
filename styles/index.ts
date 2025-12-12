@@ -5,5 +5,5 @@
 // import { homeStyles } from '@/styles';
 
 // Placeholder - add your style files here as you create them
-export {};
+export { };
 
