@@ -1,0 +1,5 @@
+# Ignore Trash and system directories
+**/.Trash
+**/Trash
+~/.Trash
+/Users/*/.Trash
