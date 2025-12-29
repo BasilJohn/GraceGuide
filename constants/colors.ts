@@ -1,39 +1,50 @@
 export const COLORS = {
-  background: "#FAF9F7",   // warm off-white background
-  surface: "#FFFFFF",      // white (cards, inputs) - light mode
-  textPrimary: "#1A1A1A",   // deeper black for premium feel
+  background: "#F8F7F5",   // refined warm cream background
+  surface: "#FFFFFF",      // pure white (cards, inputs) - light mode
+  textPrimary: "#1F1F1F",   // refined dark charcoal
   textSecondary: "#6B7280",
-  border: "#E8E6E3",       // softer border
+  border: "#E5E3E0",       // refined warm border
 
-  // Primary colors - Premium deep teal/emerald
-  primary: "#2D5F5A",      // deeper, richer teal
-  primaryLight: "#4A8B84", // refined lighter teal for gradients
-  primaryDark: "#1E4A45",  // darker shade for depth
-  secondary: "#B8A082",   // warm, sophisticated beige/gold
+  // Primary colors - Refined teal/aqua (calming, sophisticated)
+  primary: "#4A9DB8",      // refined teal blue (calming, peaceful)
+  primaryLight: "#6BB3C8", // lighter teal for gradients
+  primaryDark: "#3D8BA3",  // deeper teal for depth
+  secondary: "#FF8A7A",   // refined coral/salmon (uplifting, positive)
   
-  // Gold accent colors
-  gold: "#D4AF37",         // classic gold
-  goldLight: "#E8D5A3",   // light gold for highlights
-  goldDark: "#B8941F",    // deep gold for depth
-  goldAccent: "#C9A961",  // warm gold accent
+  // Accent colors - Soft and elegant
+  accent: "#A89BC9",      // refined lavender (spiritual, calming)
+  accentLight: "#C4B8DD", // lighter lavender
+  accentDark: "#8B7DB0",  // deeper lavender
+  
+  // Gold accent colors - Elegant rose gold
+  gold: "#E5A890",         // refined rose gold
+  goldLight: "#F2C4B0",   // light rose gold
+  goldDark: "#D18F75",    // deep rose gold
+  goldAccent: "#FF8A7A",  // refined coral (matches secondary)
+  
+  // Mood-enhancing colors - Refined pastels
+  calm: "#9FD1E0",        // refined sky blue (calming)
+  peace: "#B8D9C8",       // refined mint green (serenity)
+  hope: "#FFA8B5",        // refined pink (gentle, hopeful)
+  warmth: "#FFB894",      // refined peach (comforting)
   
   white: "#FFFFFF",        // white text on colored backgrounds
 
   // Element colors - Premium surfaces
   elementLight: "#FFFFFF",  // pure white for light mode
-  elementDark: "#1A1F24",  // deeper, richer dark mode
+  elementDark: "#1E2835",  // refined dark grey for dark mode
 
   // Text colors - Premium typography
-  textLight: "#1A1A1A",    // deep charcoal for light mode
-  textDark: "#F5F5F5",     // softer white for dark mode
+  textLight: "#1F1F1F",    // refined dark charcoal for light mode
+  textDark: "#F5F3F0",     // warm white for dark mode
 
   // Border colors - Refined borders
-  borderLight: "#E0DDD8",  // warm, subtle border for light mode
-  borderDark: "#2A2F35",  // refined dark border
+  borderLight: "#E5E3E0",  // refined warm border for light mode
+  borderDark: "#374151",  // refined dark border
 
-  // Background colors - Premium backgrounds
-  backgroundLight: "#FAF9F7",  // warm off-white background
-  backgroundDark: "#0F1419",  // deep dark background
+  // Background colors - Mood-enhancing backgrounds
+  backgroundLight: "#F8F7F5",  // refined warm cream
+  backgroundDark: "#1A2332",  // refined deep navy with teal undertones
 
   // Shadow colors
   shadowBlack: "#000000",      // black for shadows
@@ -43,21 +54,21 @@ export const COLORS = {
   buttonBorderLight: "rgba(255, 255, 255, 0.2)",  // subtle white border for buttons
 
   // Placeholder colors with opacity
-  placeholderLight: "rgba(31, 41, 55, 0.5)",   // textLight with 50% opacity
-  placeholderDark: "rgba(229, 231, 235, 0.5)", // textDark with 50% opacity
+  placeholderLight: "rgba(31, 31, 31, 0.5)",   // textLight with 50% opacity
+  placeholderDark: "rgba(245, 243, 240, 0.5)", // textDark with 50% opacity
 
   // Tab bar colors with opacity
-  tabBarBackgroundLight: "rgba(245, 243, 240, 0.9)", // background-light/90
-  tabBarBackgroundDark: "rgba(18, 24, 28, 0.9)",     // background-dark/90
-  tabBarInactiveLight: "rgba(31, 41, 55, 0.7)",      // text-light/70
-  tabBarInactiveDark: "rgba(229, 231, 235, 0.7)",    // text-dark/70
+  tabBarBackgroundLight: "rgba(248, 247, 245, 0.95)", // background-light/95
+  tabBarBackgroundDark: "rgba(26, 35, 50, 0.95)",     // background-dark/95
+  tabBarInactiveLight: "rgba(31, 31, 31, 0.6)",      // text-light/60
+  tabBarInactiveDark: "rgba(245, 243, 240, 0.6)",    // text-dark/60
 
   // Icon background colors with opacity
-  iconBgLight: "rgba(56, 102, 98, 0.1)",   // primary/10
-  iconBgDark: "rgba(76, 140, 134, 0.1)",   // primaryLight/10
+  iconBgLight: "rgba(74, 157, 184, 0.1)",   // primary/10
+  iconBgDark: "rgba(107, 179, 200, 0.15)",   // primaryLight/15
 
   // Legacy / Filters / primary action
-  muted: "#E8E6E3",        // softer muted color
+  muted: "#E5E3E0",        // refined muted color
 
   // Shadow colors with opacity
   shadowBlack30: "rgba(0, 0, 0, 0.3)",
@@ -70,13 +81,23 @@ export const COLORS = {
   white20: "rgba(255, 255, 255, 0.2)",
   white30: "rgba(255, 255, 255, 0.3)",
 
-  // Gold accent with opacity
-  goldAccent10: "rgba(201, 169, 97, 0.1)",  // goldAccent with 10% opacity
-  goldAccent30: "rgba(201, 169, 97, 0.3)",  // goldAccent with 30% opacity
+  // Coral accent with opacity
+  coralAccent10: "rgba(255, 138, 122, 0.1)",  // coral with 10% opacity
+  coralAccent30: "rgba(255, 138, 122, 0.3)",  // coral with 30% opacity
+  coralAccent50: "rgba(255, 138, 122, 0.5)",  // coral with 50% opacity
+
+  // Teal accent with opacity
+  tealAccent10: "rgba(74, 157, 184, 0.1)",  // primary with 10% opacity
+  tealAccent20: "rgba(74, 157, 184, 0.2)",  // primary with 20% opacity
+  tealAccent30: "rgba(74, 157, 184, 0.3)",  // primary with 30% opacity
+
+  // Lavender accent with opacity
+  lavenderAccent10: "rgba(168, 155, 201, 0.1)",  // accent with 10% opacity
+  lavenderAccent20: "rgba(168, 155, 201, 0.2)",  // accent with 20% opacity
 
   // Danger
-  danger: "#D32F2F",       // deeper red
-  lightRed: "#FF3B30",
+  danger: "#EF4444",       // vibrant red
+  lightRed: "#F87171",
   dangerGradient1: "#DC2626",  // red-600
   dangerGradient2: "#B91C1C",  // red-700
   dangerGradient3: "#991B1B",  // red-800
@@ -88,12 +109,22 @@ export const COLORS = {
   black88: "#00000088",    // Black with ~54% opacity (hex)
 
   // Tab bar liquid glass colors
-  tabBarGlassDark: "rgba(15, 20, 25, 0.75)",      // iOS dark blur overlay
-  tabBarGlassLight: "rgba(255, 255, 255, 0.75)",  // iOS light blur overlay
-  tabBarAndroidDark: "rgba(15, 20, 25, 0.95)",   // Android dark background
-  tabBarAndroidLight: "rgba(255, 255, 255, 0.95)", // Android light background
-  tabBarBorderDark: "rgba(255, 255, 255, 0.12)",  // Dark mode border
-  tabBarBorderLight: "rgba(0, 0, 0, 0.08)",       // Light mode border
-  tabBarBorderAndroidDark: "rgba(255, 255, 255, 0.1)", // Android dark border
-};
+  tabBarGlassDark: "rgba(26, 35, 50, 0.85)",      // iOS dark blur overlay
+  tabBarGlassLight: "rgba(255, 255, 255, 0.85)",  // iOS light blur overlay
+  tabBarAndroidDark: "rgba(26, 35, 50, 0.98)",   // Android dark background
+  tabBarAndroidLight: "rgba(248, 247, 245, 0.98)", // Android light background
+  tabBarBorderDark: "rgba(255, 255, 255, 0.1)",  // Dark mode border
+  tabBarBorderLight: "rgba(0, 0, 0, 0.06)",       // Light mode border
+  tabBarBorderAndroidDark: "rgba(255, 255, 255, 0.08)", // Android dark border
 
+  // Premium gradient colors for backgrounds
+  gradientTeal1: "#4A9DB8",    // primary
+  gradientTeal2: "#6BB3C8",    // primaryLight
+  gradientTeal3: "#9FD1E0",    // calm
+  gradientCoral1: "#FF8A7A",    // secondary/coral
+  gradientCoral2: "#FFA8B5",   // hope
+  gradientCoral3: "#FFB894",   // warmth
+  gradientLavender1: "#A89BC9", // accent
+  gradientLavender2: "#C4B8DD", // accentLight
+  gradientLavender3: "#E0D5F0", // lighter lavender
+};

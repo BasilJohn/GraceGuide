@@ -53,20 +53,25 @@ export function useSignInContainer() {
 
   const initializeGoogleSignIn = useCallback(async () => {
     try {
+      const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+      const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+
+
+      // Only configure if client IDs are provided
+      if (!webClientId || !iosClientId) {
+        return;
+      }
+
+      // Configure Google Sign-In
       GoogleSignin.configure({
-        webClientId:
-          process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || "",
-        iosClientId:
-          process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || "",
+        webClientId: webClientId,
+        iosClientId: iosClientId,
         offlineAccess: true,
         forceCodeForRefreshToken: true,
       });
+      
     } catch (error) {
-      console.error("Google Sign-In initialization error:", error);
-      Alert.alert(
-        "Initialization Error",
-        "Failed to initialize Google Sign-In"
-      );
+      // Don't show alert on initialization - only show error when user tries to sign in
     }
   }, []);
 
@@ -76,6 +81,20 @@ export function useSignInContainer() {
 
   const handleSignIn = useCallback(async () => {
     try {
+      // In Expo, environment variables are available via process.env
+      // They must be prefixed with EXPO_PUBLIC_ and dev server must be restarted
+      const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+      const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+
+      // Check if Google Sign-In is configured
+      if (!webClientId || !iosClientId) {
+        Alert.alert(
+          "Google Sign-In Not Configured",
+          "Please configure Google OAuth client IDs in your environment variables to use Google Sign-In."
+        );
+        return;
+      }
+
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
 
@@ -83,10 +102,21 @@ export function useSignInContainer() {
         googleAuthMutation.mutate(userInfo.data.idToken);
       } else {
         console.error("ID token is missing or invalid");
+        Alert.alert("Sign In Error", "Failed to get authentication token from Google");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Google Sign-In error:", error);
-      Alert.alert("Sign In Error", "Google Sign-In failed");
+      
+      // Handle specific error cases
+      if (error.code === "SIGN_IN_CANCELLED") {
+        // User cancelled, don't show error
+        return;
+      }
+      
+      Alert.alert(
+        "Sign In Error",
+        error.message || "Google Sign-In failed. Please try again."
+      );
     }
   }, [googleAuthMutation]);
 

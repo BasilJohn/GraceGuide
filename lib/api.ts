@@ -4,6 +4,12 @@ import * as SecureStore from "expo-secure-store";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || "http://localhost:4001/";
 
+// Log API base URL in development (remove trailing slash if present for cleaner logs)
+const cleanBaseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+if (__DEV__) {
+  console.log('API Base URL:', cleanBaseUrl);
+}
+
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
 

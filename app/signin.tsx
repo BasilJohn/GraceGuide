@@ -38,9 +38,10 @@ export default function SignInScreen() {
   const isDark = colorScheme === "dark";
   
   // Animation values
-  const crossScale = useSharedValue(1);
-  const crossRotation = useSharedValue(0);
-  const crossGlow = useSharedValue(0.8);
+  const logoScale = useSharedValue(1);
+  const logoRotation = useSharedValue(0);
+  const logoGlow = useSharedValue(0.8);
+  const sparkleRotation = useSharedValue(0);
   const buttonScale = useSharedValue(1);
   
   const textColor = isDark ? COLORS.textDark : COLORS.textLight;
@@ -48,48 +49,63 @@ export default function SignInScreen() {
   const borderColor = isDark ? COLORS.borderDark : COLORS.borderLight;
   const placeholderColor = isDark ? COLORS.placeholderDark : COLORS.placeholderLight;
   
-  // Dark blue background color matching the design
-  const darkBlueBackground = "#0F1419"; // Deep dark blue
-  const goldColor = COLORS.goldAccent;
+  // Calming dark background with blue undertones
+  const darkBackground = COLORS.backgroundDark; // Deep navy with blue undertones
+  const accentColor = COLORS.goldAccent; // Vibrant coral accent
 
   useEffect(() => {
-    // Cross pulse animation
-    crossScale.value = withRepeat(
+    // Logo pulse animation
+    logoScale.value = withRepeat(
       withSequence(
-        withTiming(1.1, { duration: 2000 }),
+        withTiming(1.05, { duration: 2000 }),
         withTiming(1, { duration: 2000 })
       ),
       -1,
       true
     );
 
-    // Cross gentle rotation
-    crossRotation.value = withRepeat(
+    // Logo gentle rotation
+    logoRotation.value = withRepeat(
       withSequence(
-        withTiming(3, { duration: 3000 }),
-        withTiming(-3, { duration: 3000 })
+        withTiming(5, { duration: 4000 }),
+        withTiming(-5, { duration: 4000 })
       ),
       -1,
       true
     );
 
     // Glow animation
-    crossGlow.value = withRepeat(
+    logoGlow.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 2000 }),
-        withTiming(0.6, { duration: 2000 })
+        withTiming(0.7, { duration: 2000 })
       ),
       -1,
       true
     );
+
+    // Sparkle rotation
+    sparkleRotation.value = withRepeat(
+      withTiming(360, { duration: 8000 }),
+      -1,
+      false
+    );
   }, []);
 
-  const crossAnimatedStyle = useAnimatedStyle(() => ({
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
-      { scale: crossScale.value },
-      { rotate: `${crossRotation.value}deg` },
+      { scale: logoScale.value },
+      { rotate: `${logoRotation.value}deg` },
     ],
-    opacity: crossGlow.value,
+    opacity: logoGlow.value,
+  }));
+
+  const sparkleAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${sparkleRotation.value}deg` }],
+  }));
+
+  const outerGlowAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: logoGlow.value * 0.5,
   }));
 
   const handleButtonPress = (callback: () => void) => {
@@ -106,19 +122,41 @@ export default function SignInScreen() {
 
   return (
     <GradientBackground useSafeArea={false}>
-      <View style={[styles.container, { backgroundColor: darkBlueBackground }]}>
-        {/* Animated Cross Icon */}
+      <View style={[styles.container, { backgroundColor: darkBackground }]}>
+        {/* Animated GraceGuide Logo */}
         <Animated.View
           entering={FadeInDown.delay(200).springify().damping(15)}
-          style={[styles.crossContainer, crossAnimatedStyle]}
+          style={styles.logoContainer}
         >
-          <Ionicons name="add" size={80} color={goldColor} style={styles.crossIcon} />
+          <AnimatedView style={logoAnimatedStyle}>
+            {/* Outer glow ring */}
+            <AnimatedView
+              style={[
+                styles.outerGlow,
+                outerGlowAnimatedStyle,
+                {
+                  shadowColor: COLORS.goldAccent,
+                },
+              ]}
+            />
+            {/* Main logo gradient */}
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.primaryLight, COLORS.accent, COLORS.goldAccent]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.logoGradient}
+            >
+              <AnimatedView style={sparkleAnimatedStyle}>
+                <Ionicons name="sparkles" size={64} color={COLORS.white} />
+              </AnimatedView>
+            </LinearGradient>
+          </AnimatedView>
         </Animated.View>
 
         {/* Main Title */}
         <Animated.Text
           entering={FadeIn.delay(400).duration(600)}
-          style={[styles.mainTitle, { color: goldColor }]}
+          style={[styles.mainTitle, { color: accentColor }]}
         >
           Find Peace in God's{"\n"}Presence
         </Animated.Text>
@@ -141,17 +179,19 @@ export default function SignInScreen() {
               <AnimatedView style={buttonAnimatedStyle}>
                 <TouchableOpacity
                   onPress={() => handleButtonPress(handleAppleSignIn)}
-                  activeOpacity={0.9}
+                  activeOpacity={0.85}
                   disabled={isLoading}
                   style={styles.appleButtonWrapper}
                 >
                   <LinearGradient
-                    colors={["#000000", "#1A1A1A", "#000000"]}
+                    colors={["#1A1A1A", "#2A2A2A", "#1A1A1A"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.appleButton}
                   >
-                    <Ionicons name="logo-apple" size={22} color={COLORS.white} style={styles.buttonIcon} />
+                    <View style={styles.iconContainer}>
+                      <Ionicons name="logo-apple" size={24} color={COLORS.white} />
+                    </View>
                     <Text style={styles.appleButtonText}>Continue with Apple</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -161,9 +201,11 @@ export default function SignInScreen() {
                 entering={FadeIn.delay(1000).duration(400)}
                 style={styles.dividerContainer}
               >
-                <View style={[styles.dividerLine, { backgroundColor: borderColor }]} />
-                <Text style={[styles.orText, { color: placeholderColor }]}>or</Text>
-                <View style={[styles.dividerLine, { backgroundColor: borderColor }]} />
+                <View style={[styles.dividerLine, { backgroundColor: borderColor + "60" }]} />
+                <View style={styles.orTextContainer}>
+                  <Text style={[styles.orText, { color: placeholderColor }]}>or</Text>
+                </View>
+                <View style={[styles.dividerLine, { backgroundColor: borderColor + "60" }]} />
               </Animated.View>
             </>
           )}
@@ -171,30 +213,38 @@ export default function SignInScreen() {
           <AnimatedView style={buttonAnimatedStyle}>
             <TouchableOpacity
               onPress={() => handleButtonPress(handleSignIn)}
-              activeOpacity={0.9}
+              activeOpacity={0.85}
               disabled={isLoading}
               style={styles.googleButtonWrapper}
             >
-              <View
-                style={[
-                  styles.googleButton,
-                  {
-                    backgroundColor: elementBg,
-                    borderColor: goldColor,
-                    shadowColor: COLORS.shadowBlack,
-                  },
-                ]}
+              <LinearGradient
+                colors={
+                  isDark
+                    ? [COLORS.elementDark, COLORS.primaryDark + "40", COLORS.elementDark]
+                    : [COLORS.white, COLORS.backgroundLight, COLORS.white]
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.googleButton}
               >
-                <AntDesign
-                  name="google"
-                  size={22}
-                  color={COLORS.googleBlue}
-                  style={styles.buttonIcon}
-                />
+                <View style={[
+                  styles.iconContainer,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255, 255, 255, 0.15)"
+                      : "rgba(66, 133, 244, 0.1)",
+                  },
+                ]}>
+                  <AntDesign
+                    name="google"
+                    size={20}
+                    color={COLORS.googleBlue}
+                  />
+                </View>
                 <Text style={[styles.googleButtonText, { color: textColor }]}>
                   Continue with Google
                 </Text>
-              </View>
+              </LinearGradient>
             </TouchableOpacity>
           </AnimatedView>
         </Animated.View>
@@ -211,16 +261,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingBottom: 60,
   },
-  crossContainer: {
+  logoContainer: {
     alignItems: "center",
+    justifyContent: "center",
     marginBottom: 40,
+    position: "relative",
+    width: 140,
+    height: 140,
   },
-  crossIcon: {
-    shadowColor: COLORS.goldAccent,
-    shadowOpacity: 0.8,
+  outerGlow: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "transparent",
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+  },
+  logoGradient: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.6,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
+    elevation: 15,
   },
   mainTitle: {
     fontSize: 36,
@@ -246,71 +317,83 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   appleButtonWrapper: {
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: "hidden",
     shadowColor: COLORS.shadowBlack,
     shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
   },
   appleButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    minHeight: 56,
+    paddingVertical: 18,
+    paddingHorizontal: 28,
+    borderRadius: 18,
+    minHeight: 60,
+    gap: 12,
   },
   appleButtonText: {
     color: COLORS.white,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "600",
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
+    fontFamily: FONTS.primary,
   },
   googleButtonWrapper: {
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: "hidden",
     shadowColor: COLORS.shadowBlack,
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
   },
   googleButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    minHeight: 56,
+    paddingVertical: 18,
+    paddingHorizontal: 28,
+    borderRadius: 18,
+    minHeight: 60,
+    gap: 12,
   },
   googleButtonText: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "600",
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
+    fontFamily: FONTS.primary,
   },
-  buttonIcon: {
-    marginRight: 12,
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 8,
+    marginVertical: 12,
+    width: "100%",
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    opacity: 0.3,
+    height: 1.5,
+  },
+  orTextContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 4,
   },
   orText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
-    marginHorizontal: 16,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
 });
 

@@ -13,7 +13,14 @@
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.graceguide.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.392046591810-nio0kct7e0dtjd0dlqb70t3tdg6kj7dj"
+            ]
+          }
+        ]
       }
     },
     "android": {
@@ -49,7 +56,7 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID"
+          "iosUrlScheme": "com.googleusercontent.apps.392046591810-nio0kct7e0dtjd0dlqb70t3tdg6kj7dj"
         }
       ]
     ],

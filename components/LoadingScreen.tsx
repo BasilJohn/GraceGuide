@@ -150,7 +150,7 @@ export default function LoadingScreen() {
         colors={
           isDark
             ? [COLORS.backgroundDark, COLORS.primaryDark + "20", COLORS.backgroundDark]
-            : [COLORS.backgroundLight, COLORS.primaryLight + "10", COLORS.backgroundLight]
+            : [COLORS.backgroundLight, COLORS.tealAccent10, COLORS.backgroundLight]
         }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -166,7 +166,7 @@ export default function LoadingScreen() {
         <AnimatedView style={[styles.logoContainer, logoAnimatedStyle]}>
           <AnimatedView style={iconAnimatedStyle}>
             <LinearGradient
-              colors={[COLORS.primaryLight, COLORS.primary, COLORS.primaryDark]}
+              colors={[COLORS.primary, COLORS.primaryLight, COLORS.accent, COLORS.secondary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconGradient}
@@ -197,9 +197,9 @@ export default function LoadingScreen() {
           entering={FadeInDown.delay(700).duration(600)}
           style={styles.dotsContainer}
         >
-          <AnimatedView style={[styles.dot, dot1Style, { backgroundColor: COLORS.goldAccent }]} />
-          <AnimatedView style={[styles.dot, dot2Style, { backgroundColor: COLORS.goldAccent }]} />
-          <AnimatedView style={[styles.dot, dot3Style, { backgroundColor: COLORS.goldAccent }]} />
+          <AnimatedView style={[styles.dot, dot1Style, { backgroundColor: COLORS.secondary }]} />
+          <AnimatedView style={[styles.dot, dot2Style, { backgroundColor: COLORS.secondary }]} />
+          <AnimatedView style={[styles.dot, dot3Style, { backgroundColor: COLORS.secondary }]} />
         </Animated.View>
 
         {/* Progress Bar */}
@@ -213,7 +213,7 @@ export default function LoadingScreen() {
                 styles.progressBarFill,
                 progressAnimatedStyle,
                 {
-                  backgroundColor: COLORS.goldAccent,
+                  backgroundColor: COLORS.secondary,
                 },
               ]}
             />
@@ -227,7 +227,7 @@ export default function LoadingScreen() {
         style={styles.decorativeContainer}
       >
         <View style={[styles.decorativeCircle, { backgroundColor: COLORS.primary + "15" }]} />
-        <View style={[styles.decorativeCircle, styles.decorativeCircle2, { backgroundColor: COLORS.goldAccent + "10" }]} />
+        <View style={[styles.decorativeCircle, styles.decorativeCircle2, { backgroundColor: COLORS.secondary + "10" }]} />
       </Animated.View>
     </View>
   );

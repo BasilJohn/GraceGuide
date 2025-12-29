@@ -4,48 +4,90 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import { Redirect, Stack, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Platform, TouchableOpacity } from "react-native";
+import LoadingScreen from "../components/LoadingScreen";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import QueryProvider from "../providers/QueryProvider";
-import LoadingScreen from "../components/LoadingScreen";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 function AuthGate() {
   const { user, loading } = useAuth();
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
 
-  // Declarative redirect instead of router.replace()
-  if (loading) {
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (user) {
+        try {
+          const completed = await SecureStore.getItemAsync("onboardingCompleted");
+          setOnboardingCompleted(completed === "true");
+        } catch (error) {
+          setOnboardingCompleted(false);
+        }
+      }
+      setCheckingOnboarding(false);
+    };
+
+    if (!loading) {
+      checkOnboarding();
+    }
+  }, [user, loading]);
+
+  // Show loading while checking auth and onboarding
+  if (loading || checkingOnboarding) {
     return <LoadingScreen />;
   }
 
   if (!user) {
     return <Redirect href="/signin" />;
   }
+
+  // Redirect to onboarding if not completed
+  if (!onboardingCompleted) {
+    return <Redirect href="/onboarding/emotions" />;
+  }
+
   return <Redirect href="/(tabs)" />;
 }
 
 function CustomBackButton() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const textColor = colorScheme === "dark" ? COLORS.textDark : COLORS.textLight;
+  const isDark = colorScheme === "dark";
+  const textColor = isDark ? COLORS.textDark : COLORS.textLight;
+  const backgroundColor = isDark
+    ? COLORS.elementDark + "80"
+    : COLORS.elementLight + "80";
+  
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      // If no previous screen, navigate to home
+      router.replace("/(tabs)");
+    }
+  };
   
   return (
     <TouchableOpacity
-      onPress={() => router.back()}
+      onPress={handleBack}
       style={{
         justifyContent: "center",
         alignItems: "center",
-        width: 48,
-        height: 48,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor,
         marginLeft: -8,
       }}
-      activeOpacity={0.6}
+      activeOpacity={0.7}
     >
-      <Ionicons name="arrow-back" size={24} color={textColor} />
+      <Ionicons name="arrow-back" size={22} color={textColor} />
     </TouchableOpacity>
   );
 }
@@ -63,6 +105,10 @@ function StackWithHeaders() {
       }}
     >
       <Stack.Screen name="signin" />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+      <Stack.Screen name="checkin-modal" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="devotional-modal" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="chat" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen 
         name="modal" 
