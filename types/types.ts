@@ -153,3 +153,17 @@ export interface DailyDevotionalResponse {
   devotional: string;
 }
 
+// Daily Reading Status Types
+export interface MarkReadResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface ReadingStatusResponse {
+  date: string;
+  scriptureRead: boolean;
+  devotionalRead: boolean;
+  completed: boolean;
+  readAt?: string;
+}
+

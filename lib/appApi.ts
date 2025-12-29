@@ -1,17 +1,19 @@
 import {
-    AppleAuthResponse,
-    ChatMessageRequest,
-    ChatMessageResponse,
-    CheckInRequest,
-    CheckInResponse,
-    CheckInsListResponse,
-    ConversationHistoryResponse,
-    ConversationsListResponse,
-    DailyDevotionalResponse,
-    DailyScriptureResponse,
-    DailyVerseResponse,
-    GoogleAuthResponse,
-    User,
+  AppleAuthResponse,
+  ChatMessageRequest,
+  ChatMessageResponse,
+  CheckInRequest,
+  CheckInResponse,
+  CheckInsListResponse,
+  ConversationHistoryResponse,
+  ConversationsListResponse,
+  DailyDevotionalResponse,
+  DailyScriptureResponse,
+  DailyVerseResponse,
+  GoogleAuthResponse,
+  MarkReadResponse,
+  ReadingStatusResponse,
+  User,
 } from "@/types/types";
 import api from "./api";
 
@@ -183,4 +185,34 @@ export async function getDailyDevotional(): Promise<DailyDevotionalResponse> {
   );
   return response.data;
 }
+
+// Daily Reading Status APIs (authentication required)
+export async function markScriptureRead(): Promise<MarkReadResponse> {
+  const response = await api.post<MarkReadResponse>(
+    `api/daily/scripture/mark-read`
+  );
+  return response.data;
+}
+
+export async function markDevotionalRead(): Promise<MarkReadResponse> {
+  const response = await api.post<MarkReadResponse>(
+    `api/daily/devotional/mark-read`
+  );
+  return response.data;
+}
+
+export async function markDailyComplete(): Promise<MarkReadResponse> {
+  const response = await api.post<MarkReadResponse>(
+    `api/daily/mark-complete`
+  );
+  return response.data;
+}
+
+export async function getReadingStatus(): Promise<ReadingStatusResponse> {
+  const response = await api.get<ReadingStatusResponse>(
+    `api/daily/reading-status`
+  );
+  return response.data;
+}
+
 

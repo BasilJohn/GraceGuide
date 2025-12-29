@@ -3,6 +3,7 @@ import { COLORS } from "@/constants/colors";
 import { FONTS } from "@/constants/fonts";
 import { useAuth } from "@/context/AuthContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useReadingStatus } from "@/hooks/useReadingStatus";
 import { deleteUserAccount } from "@/lib/appApi";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -31,6 +32,9 @@ export default function ProfileScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [imageError, setImageError] = useState(false);
+  
+  // Reading status
+  const { data: readingStatus } = useReadingStatus();
 
   const textColor = isDark ? COLORS.textDark : COLORS.textLight;
   const placeholderColor = isDark ? COLORS.placeholderDark : COLORS.placeholderLight;
@@ -283,9 +287,68 @@ export default function ProfileScreen() {
             </View>
           </Animated.View>
 
-          {/* Actions Section */}
+          {/* Reading Status Section */}
           <Animated.View
             entering={FadeInDown.delay(400).duration(400)}
+            style={styles.section}
+          >
+            <View
+              style={[
+                styles.detailsCard,
+                {
+                  backgroundColor: elementBg,
+                  borderColor: borderColor,
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: textColor }]}>
+                Daily Reading Status
+              </Text>
+              
+              <View style={styles.detailRow}>
+                <View style={[styles.detailIconContainer, { backgroundColor: COLORS.tealAccent10 }]}>
+                  <Ionicons 
+                    name={readingStatus?.scriptureRead ? "checkmark-circle" : "ellipse-outline"} 
+                    size={22} 
+                    color={readingStatus?.scriptureRead ? COLORS.primary : placeholderColor} 
+                  />
+                </View>
+                <View style={styles.detailContent}>
+                  <Text style={[styles.detailLabel, { color: placeholderColor }]}>
+                    Scripture
+                  </Text>
+                  <Text style={[styles.detailValue, { color: textColor }]}>
+                    {readingStatus?.scriptureRead ? "Read" : "Not Read"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: borderColor }]} />
+
+              <View style={styles.detailRow}>
+                <View style={[styles.detailIconContainer, { backgroundColor: COLORS.coralAccent10 }]}>
+                  <Ionicons 
+                    name={readingStatus?.devotionalRead ? "checkmark-circle" : "ellipse-outline"} 
+                    size={22} 
+                    color={readingStatus?.devotionalRead ? COLORS.secondary : placeholderColor} 
+                  />
+                </View>
+                <View style={styles.detailContent}>
+                  <Text style={[styles.detailLabel, { color: placeholderColor }]}>
+                    Devotional
+                  </Text>
+                  <Text style={[styles.detailValue, { color: textColor }]}>
+                    {readingStatus?.devotionalRead ? "Read" : "Not Read"}
+                  </Text>
+                </View>
+              </View>
+
+            </View>
+          </Animated.View>
+
+          {/* Actions Section */}
+          <Animated.View
+            entering={FadeInDown.delay(450).duration(400)}
             style={styles.section}
           >
             <View
@@ -524,6 +587,12 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 16,
     fontWeight: "600",
+    letterSpacing: 0.1,
+  },
+  detailSubtitle: {
+    fontSize: 13,
+    fontWeight: "400",
+    marginTop: 2,
     letterSpacing: 0.1,
   },
   divider: {

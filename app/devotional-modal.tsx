@@ -3,21 +3,22 @@ import { COLORS } from "@/constants/colors";
 import { FONTS } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDailyScripture } from "@/hooks/useDailyScripture";
+import { useMarkDailyComplete, useReadingStatus } from "@/hooks/useReadingStatus";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    FadeInDown,
-    FadeInUp,
+  FadeInDown,
+  FadeInUp,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -28,6 +29,17 @@ export default function DevotionalModalScreen() {
 
   // Fetch daily scripture with devotional
   const { data: scriptureData, isLoading, error } = useDailyScripture();
+  
+  // Reading status
+  const { data: readingStatus } = useReadingStatus();
+  const markComplete = useMarkDailyComplete();
+  
+  // Auto-mark as complete when devotional is viewed
+  React.useEffect(() => {
+    if (scriptureData && !readingStatus?.completed && !markComplete.isPending) {
+      markComplete.mutate();
+    }
+  }, [scriptureData, readingStatus?.completed]);
 
   const textColor = isDark ? COLORS.textDark : COLORS.textLight;
   const placeholderColor = isDark ? COLORS.placeholderDark : COLORS.placeholderLight;
@@ -257,7 +269,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 36,
     marginBottom: 20,
-    fontFamily: FONTS.headerRegular,
+    fontFamily: FONTS.header,
     fontWeight: "400",
     letterSpacing: 0.2,
   },

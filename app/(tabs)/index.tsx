@@ -4,6 +4,7 @@ import { FONTS } from "@/constants/fonts";
 import { useAuth } from "@/context/AuthContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDailyVerse } from "@/hooks/useDailyScripture";
+import { useMarkScriptureRead, useReadingStatus } from "@/hooks/useReadingStatus";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -38,6 +39,17 @@ export default function HomeScreen() {
 
   // Fetch daily verse
   const { data: verseData, isLoading: verseLoading, error: verseError } = useDailyVerse();
+  
+  // Reading status
+  const { data: readingStatus } = useReadingStatus();
+  const markScriptureRead = useMarkScriptureRead();
+  
+  // Auto-mark scripture as read when viewed
+  React.useEffect(() => {
+    if (verseData && !readingStatus?.scriptureRead && !markScriptureRead.isPending) {
+      markScriptureRead.mutate();
+    }
+  }, [verseData, readingStatus?.scriptureRead]);
 
   // Get greeting based on time of day
   const getGreeting = () => {
@@ -104,14 +116,21 @@ export default function HomeScreen() {
                 },
               ]}
             >
-              <Text
-                style={[
-                  styles.scriptureTitle,
-                  { color: placeholderColor },
-                ]}
-              >
-                Scripture of the Day
-              </Text>
+              <View style={styles.scriptureHeader}>
+                <Text
+                  style={[
+                    styles.scriptureTitle,
+                    { color: placeholderColor },
+                  ]}
+                >
+                  Scripture of the Day
+                </Text>
+                {readingStatus?.scriptureRead && (
+                  <View style={styles.checkmarkContainer}>
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                  </View>
+                )}
+              </View>
               {verseLoading ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="small" color={COLORS.gold} />
@@ -228,12 +247,19 @@ export default function HomeScreen() {
                 >
                   <Ionicons name="book" size={28} color={COLORS.secondary} />
                 </LinearGradient>
-                <Text style={[styles.quickActionTitle, { color: textColor }]}>
-                  Devotional
-                </Text>
-                <Text style={[styles.quickActionSubtitle, { color: placeholderColor }]}>
-                  Daily reading
-                </Text>
+                <View style={styles.quickActionTextContainer}>
+                  <Text style={[styles.quickActionTitle, { color: textColor }]}>
+                    Devotional
+                  </Text>
+                  <Text style={[styles.quickActionSubtitle, { color: placeholderColor }]}>
+                    Daily reading
+                  </Text>
+                </View>
+                {readingStatus?.completed && (
+                  <View style={styles.quickActionCheckmark}>
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -292,12 +318,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
+  scriptureHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    width: "100%",
+  },
   scriptureTitle: {
     fontSize: 14,
     fontWeight: "600",
-    marginBottom: 16,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    flex: 1,
+  },
+  checkmarkContainer: {
+    marginLeft: 8,
   },
   scriptureVerse: {
     fontSize: 22,
@@ -364,6 +400,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+    position: "relative",
+  },
+  quickActionTextContainer: {
+    alignItems: "center",
+    flex: 1,
+  },
+  quickActionCheckmark: {
+    position: "absolute",
+    top: 12,
+    right: 12,
   },
   quickActionIconContainer: {
     width: 64,

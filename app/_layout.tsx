@@ -9,6 +9,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { Platform, TouchableOpacity } from "react-native";
 import LoadingScreen from "../components/LoadingScreen";
+import CustomSplashScreen from "../components/SplashScreen";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import QueryProvider from "../providers/QueryProvider";
 
@@ -19,6 +20,7 @@ function AuthGate() {
   const { user, loading } = useAuth();
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -157,21 +159,42 @@ export default function RootLayout() {
     // "PlayfairDisplay-Bold": require("../assets/fonts/PlayfairDisplay-Bold.ttf"),
   });
 
+  const [showSplash, setShowSplash] = useState(true);
+
   useEffect(() => {
-    // Hide splash screen after fonts load or after timeout
+    // Show custom splash for a minimum duration for better UX
     const hideSplash = async () => {
-      if (fontsLoaded || fontError) {
-        await SplashScreen.hideAsync();
-      } else {
-        // Timeout fallback - hide splash after 2 seconds even if fonts aren't loaded
+      // Minimum splash screen display time (1.5 seconds)
+      const minDisplayTime = 1500;
+      const startTime = Date.now();
+
+      const hide = async () => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, minDisplayTime - elapsed);
+
         setTimeout(async () => {
-          await SplashScreen.hideAsync();
-        }, 2000);
-      }
+          setShowSplash(false);
+          if (fontsLoaded || fontError) {
+            await SplashScreen.hideAsync();
+          } else {
+            // Additional timeout if fonts aren't loaded
+            setTimeout(async () => {
+              await SplashScreen.hideAsync();
+            }, 500);
+          }
+        }, remaining);
+      };
+
+      hide();
     };
 
     hideSplash();
   }, [fontsLoaded, fontError]);
+
+  // Show custom splash screen initially
+  if (showSplash) {
+    return <CustomSplashScreen />;
+  }
 
   // Always render the app - fonts will be used when available
   return (
