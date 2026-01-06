@@ -217,34 +217,18 @@ export default function SignInScreen() {
               disabled={isLoading}
               style={styles.googleButtonWrapper}
             >
-              <LinearGradient
-                colors={
-                  isDark
-                    ? [COLORS.elementDark, COLORS.primaryDark + "40", COLORS.elementDark]
-                    : [COLORS.white, COLORS.backgroundLight, COLORS.white]
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.googleButton}
-              >
-                <View style={[
-                  styles.iconContainer,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(255, 255, 255, 0.15)"
-                      : "rgba(66, 133, 244, 0.1)",
-                  },
-                ]}>
+              <View style={styles.googleButton}>
+                <View style={styles.iconContainer}>
                   <AntDesign
                     name="google"
                     size={20}
-                    color={COLORS.googleBlue}
+                    color={COLORS.white}
                   />
                 </View>
-                <Text style={[styles.googleButtonText, { color: textColor }]}>
+                <Text style={styles.googleButtonText}>
                   Continue with Google
                 </Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </AnimatedView>
         </Animated.View>
@@ -360,18 +344,20 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     minHeight: 60,
     gap: 12,
+    backgroundColor: "#243040",
   },
   googleButtonText: {
     fontSize: 18,
     fontWeight: "600",
     letterSpacing: 0.3,
     fontFamily: FONTS.primary,
+    color: COLORS.white,
   },
   iconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
   },
