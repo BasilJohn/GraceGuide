@@ -19,9 +19,15 @@
             "CFBundleURLSchemes": [
               "com.googleusercontent.apps.392046591810-nio0kct7e0dtjd0dlqb70t3tdg6kj7dj"
             ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.392046591810-nio0kct7e0dtjd0dlqb70t3tdg6kj7dj"
+            ]
           }
         ]
-      }
+      },
+      "buildNumber": "6"
     },
     "android": {
       "adaptiveIcon": {
@@ -69,6 +75,10 @@
       "eas": {
         "projectId": "94e22836-3900-4717-a06f-77fa38fbd31d"
       }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/94e22836-3900-4717-a06f-77fa38fbd31d"
     }
   }
 }

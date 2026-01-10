@@ -9,6 +9,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { AppState, AppStateStatus } from "react-native";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -29,14 +30,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ]);
 
         if (storedAccessToken && storedRefreshToken && storedUser) {
+          // On startup, just load the tokens and user
+          // Token validation will happen naturally on first API call via interceptor
+          // This avoids race conditions and double refresh attempts
           setTokens({
             accessToken: storedAccessToken,
             refreshToken: storedRefreshToken,
           });
           setUser(JSON.parse(storedUser));
+        } else {
+          // No tokens found, ensure state is clean
+          setUser(null);
+          setTokens(null);
         }
       } catch (error) {
         console.error("Error loading auth state:", error);
+        setUser(null);
+        setTokens(null);
       } finally {
         setLoading(false);
       }
@@ -44,6 +54,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     loadStoredAuth();
   }, []);
+
+  // Listen for app state changes to sync tokens when app comes to foreground
+  useEffect(() => {
+    // Only set up listener after initial load is complete
+    if (loading) return;
+
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (nextAppState === "active") {
+        // App came to foreground, sync tokens from SecureStore
+        // This ensures we have the latest tokens (in case they were refreshed while app was in background)
+        try {
+          const [storedAccessToken, storedRefreshToken, storedUser] =
+            await Promise.all([
+              SecureStore.getItemAsync("accessToken"),
+              SecureStore.getItemAsync("refreshToken"),
+              SecureStore.getItemAsync("user"),
+            ]);
+
+          if (storedAccessToken && storedRefreshToken && storedUser) {
+            // Update state with latest tokens and user from SecureStore
+            setTokens({
+              accessToken: storedAccessToken,
+              refreshToken: storedRefreshToken,
+            });
+            try {
+              setUser(JSON.parse(storedUser));
+            } catch (parseError) {
+              console.error("Error parsing user data:", parseError);
+            }
+          } else {
+            // Tokens were cleared while app was in background
+            setUser(null);
+            setTokens(null);
+          }
+        } catch (error) {
+          console.error("Error syncing tokens on app focus:", error);
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [loading]);
 
   // Sign in (save user + tokens)
   const signIn = useCallback(async (newUser: User, newTokens: AuthTokens) => {

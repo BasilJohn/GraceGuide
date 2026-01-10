@@ -85,123 +85,207 @@ export default function CheckInToneScreen() {
 
     setIsSubmitting(true);
     
-    // Always save check-in data locally first
     try {
-      await SecureStore.setItemAsync("checkInTone", selectedTone);
+      // Always save check-in data locally first
+      try {
+        await SecureStore.setItemAsync("checkInTone", selectedTone);
+        if (selectedEmotions.length > 0) {
+          await SecureStore.setItemAsync("checkInEmotions", JSON.stringify(selectedEmotions));
+        }
+      } catch (localError) {
+        console.error("Failed to save check-in locally:", localError);
+      }
+
+      // Try to submit to API (but don't block if it fails)
+      let apiSuccess = false;
       if (selectedEmotions.length > 0) {
-        await SecureStore.setItemAsync("checkInEmotions", JSON.stringify(selectedEmotions));
-      }
-    } catch (localError) {
-      console.error("Failed to save check-in locally:", localError);
-    }
-
-    // Try to submit to API (but don't block if it fails)
-    let apiSuccess = false;
-    if (selectedEmotions.length > 0) {
-      try {
-        await submitCheckIn(
-          selectedEmotions as any,
-          selectedTone as any
-        );
-        apiSuccess = true;
-      } catch (error: any) {
-        console.error("Failed to submit check-in to API:", error);
-        // Check if it's a network error
-        const isNetworkError = error.message?.includes('Network Error') || 
-                              error.code === 'ERR_NETWORK' ||
-                              !error.response;
-        
-        if (isNetworkError) {
-          // Network error - backend might not be running
-          console.warn("Backend API not available. Check-in saved locally only.");
-        } else {
-          // Other API error
-          console.warn("API error:", error.response?.status, error.response?.data);
+        try {
+          await submitCheckIn(
+            selectedEmotions as any,
+            selectedTone as any
+          );
+          apiSuccess = true;
+        } catch (error: any) {
+          console.error("Failed to submit check-in to API:", error);
+          // Check if it's a network error
+          const isNetworkError = error.message?.includes('Network Error') || 
+                                error.code === 'ERR_NETWORK' ||
+                                !error.response;
+          
+          if (isNetworkError) {
+            // Network error - backend might not be running
+            console.warn("Backend API not available. Check-in saved locally only.");
+          } else {
+            // Other API error
+            console.warn("API error:", error.response?.status, error.response?.data);
+          }
+          // Continue anyway - data is saved locally
         }
-        // Continue anyway - data is saved locally
       }
-    }
 
-    // Fetch initial AI response based on check-in data
-    // This will be displayed in the chat screen
-    if (selectedEmotions.length > 0) {
-      try {
-        // Create a message that references the check-in
-        const emotionLabels: { [key: string]: string } = {
-          loneliness: "lonely",
-          fear: "afraid",
-          anxiety: "anxious",
-          guilt: "guilty",
-          sadness: "sad",
-          anger: "angry",
-          grief: "grieving",
-          relationships: "struggling with relationships",
-        };
-        
-        const emotionText = selectedEmotions
-          .map((e) => emotionLabels[e] || e)
-          .join(", ");
-        
-        const initialMessage = `I just completed my check-in. I'm feeling ${emotionText}. Can you help me?`;
-        
-        // Send message to API with context
-        const chatResponse = await sendChatMessage({
-          message: initialMessage,
-          includeContext: true, // This will use the check-in data
-        });
-        
-        // Store the response to display in chat screen (include the user message too)
-        await SecureStore.setItemAsync(
-          "pendingChatResponse",
-          JSON.stringify({
-            userMessage: initialMessage,
-            response: chatResponse.response,
-            conversationId: chatResponse.conversationId,
-          })
-        );
-        
-        // Store conversation ID for future messages
-        if (chatResponse.conversationId) {
-          await SecureStore.setItemAsync("currentConversationId", chatResponse.conversationId);
+      // Fetch initial AI response based on check-in data
+      // This will be displayed in the chat screen
+      if (selectedEmotions.length > 0) {
+        try {
+          // Create a message that references the check-in
+          const emotionLabels: { [key: string]: string } = {
+            loneliness: "lonely",
+            fear: "afraid",
+            anxiety: "anxious",
+            guilt: "guilty",
+            sadness: "sad",
+            anger: "angry",
+            grief: "grieving",
+            relationships: "struggling with relationships",
+          };
+          
+          const emotionText = selectedEmotions
+            .map((e) => emotionLabels[e] || e)
+            .join(", ");
+          
+          const initialMessage = `I just completed my check-in. I'm feeling ${emotionText}. Can you help me?`;
+          
+          // Send message to API with context
+          const chatResponse = await sendChatMessage({
+            message: initialMessage,
+            includeContext: true, // This will use the check-in data
+          });
+          
+          // Store the response to display in chat screen (include the user message too)
+          await SecureStore.setItemAsync(
+            "pendingChatResponse",
+            JSON.stringify({
+              userMessage: initialMessage,
+              response: chatResponse.response,
+              conversationId: chatResponse.conversationId,
+            })
+          );
+          
+          // Store conversation ID for future messages
+          if (chatResponse.conversationId) {
+            await SecureStore.setItemAsync("currentConversationId", chatResponse.conversationId);
+          }
+        } catch (error: any) {
+          console.error("Failed to fetch initial chat response:", error);
+          // Continue anyway - user can still chat
         }
-      } catch (error: any) {
-        console.error("Failed to fetch initial chat response:", error);
-        // Continue anyway - user can still chat
       }
+
+      // Clear the emotions from SecureStore after processing
+      try {
+        await SecureStore.deleteItemAsync("checkInEmotions");
+      } catch (error) {
+        console.error("Failed to clear emotions:", error);
+      }
+    } finally {
+      // Always dismiss the modal and navigate, even if there were errors
+      setIsSubmitting(false);
+      
+      // Navigate to chat after check-in completion
+      // We're in a nested Stack: /checkin-modal (modal) -> emotions (Stack screen) -> tone (Stack screen)
+      // We need to exit the entire modal stack and navigate to chat
+      // Strategy: Dismiss back through the Stack, then navigate to chat
+      
+      // Use requestAnimationFrame to ensure state updates are processed first
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          try {
+            // First, dismiss the current screen (tone) to go back to emotions
+            // Then dismiss again to exit the modal entirely
+            router.dismiss(); // Dismiss tone -> back to emotions
+            
+            setTimeout(() => {
+              try {
+                // Now we're on emotions screen - dismiss to exit the modal
+                router.dismiss(); // Dismiss emotions -> exit checkin-modal
+                
+                // After modal is fully dismissed, navigate to chat
+                setTimeout(() => {
+                  try {
+                    router.push("/chat");
+                  } catch (chatError) {
+                    console.error("Failed to navigate to chat:", chatError);
+                    // Fallback: navigate to tabs
+                    router.replace("/(tabs)");
+                  }
+                }, 200); // Delay to ensure modal dismissal animation completes
+              } catch (secondDismissError) {
+                console.error("Failed second dismiss:", secondDismissError);
+                // If second dismiss fails, try navigating directly
+                setTimeout(() => {
+                  router.push("/chat");
+                }, 100);
+              }
+            }, 200); // Delay to ensure first dismiss completes
+          } catch (firstDismissError) {
+            console.error("Failed first dismiss:", firstDismissError);
+            // Fallback: try navigating to tabs first, then chat
+            try {
+              router.replace("/(tabs)");
+              setTimeout(() => {
+                router.push("/chat");
+              }, 150);
+            } catch (fallbackError) {
+              console.error("Fallback navigation failed:", fallbackError);
+              // Last resort: try direct replace
+              router.replace("/chat");
+            }
+          }
+        }, 100);
+      });
     }
-
-    // Clear the emotions from SecureStore after processing
-    await SecureStore.deleteItemAsync("checkInEmotions");
-
-    // Navigate to chat regardless of API success/failure
-    // Dismiss the check-in modal first
-    router.dismiss();
-    // Navigate to chat after modal dismisses
-    setTimeout(() => {
-      router.push("/chat");
-    }, 500);
-    
-    setIsSubmitting(false);
   };
 
   const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.dismiss();
-      // Navigate to home tab after dismissing
-      setTimeout(() => {
+    try {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.dismiss();
+        // Navigate to home tab after dismissing
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            try {
+              router.replace("/(tabs)");
+            } catch (error) {
+              console.error("Failed to navigate to tabs:", error);
+            }
+          }, 300);
+        });
+      }
+    } catch (error) {
+      console.error("Failed to handle back navigation:", error);
+      // Fallback: try to dismiss and navigate
+      try {
+        router.dismiss();
+      } catch {
         router.replace("/(tabs)");
-      }, 100);
+      }
     }
   };
 
   const handleClose = () => {
-    router.dismiss();
-    // Navigate to home tab after dismissing
-    setTimeout(() => {
-      router.replace("/(tabs)");
-    }, 100);
+    try {
+      router.dismiss();
+      // Navigate to home tab after dismissing
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          try {
+            router.replace("/(tabs)");
+          } catch (error) {
+            console.error("Failed to navigate to tabs:", error);
+          }
+        }, 300);
+      });
+    } catch (error) {
+      console.error("Failed to close modal:", error);
+      // Fallback: try to navigate directly
+      try {
+        router.replace("/(tabs)");
+      } catch (fallbackError) {
+        console.error("Failed to navigate as fallback:", fallbackError);
+      }
+    }
   };
 
   return (

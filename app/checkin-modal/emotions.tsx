@@ -72,11 +72,27 @@ export default function CheckInEmotionsScreen() {
   };
 
   const handleClose = () => {
-    router.dismiss();
-    // Navigate to home tab after dismissing
-    setTimeout(() => {
-      router.replace("/(tabs)");
-    }, 100);
+    try {
+      router.dismiss();
+      // Navigate to home tab after dismissing
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          try {
+            router.replace("/(tabs)");
+          } catch (error) {
+            console.error("Failed to navigate to tabs:", error);
+          }
+        }, 300);
+      });
+    } catch (error) {
+      console.error("Failed to close modal:", error);
+      // Fallback: try to navigate directly
+      try {
+        router.replace("/(tabs)");
+      } catch (fallbackError) {
+        console.error("Failed to navigate as fallback:", fallbackError);
+      }
+    }
   };
 
   const handleSkip = () => {

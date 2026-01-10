@@ -28,7 +28,7 @@
         "gradleCommand": ":app:bundleRelease"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://trackmybooks.app/"
+        "EXPO_PUBLIC_API_URL": "https://mygraceguide.app/"
       },
       "channel": "production"
     }

@@ -19,22 +19,30 @@ export async function setAccessToken(token: string) {
 }
 
 export async function loadAccessToken() {
-  if (!accessToken) {
-    accessToken = await SecureStore.getItemAsync("accessToken");
+  // Always load from SecureStore to ensure we have the latest token
+  // (in case it was refreshed elsewhere)
+  const token = await SecureStore.getItemAsync("accessToken");
+  if (token) {
+    accessToken = token;
   }
   return accessToken;
 }
 
 export async function loadRefreshToken() {
-  if (!refreshToken) {
-    refreshToken = await SecureStore.getItemAsync("refreshToken");
+  // Always load from SecureStore to ensure we have the latest token
+  const token = await SecureStore.getItemAsync("refreshToken");
+  if (token) {
+    refreshToken = token;
   }
   return refreshToken;
 }
 
-async function saveTokens(accessToken: string, refreshToken: string) {
-  await SecureStore.setItemAsync("accessToken", accessToken);
-  await SecureStore.setItemAsync("refreshToken", refreshToken);
+async function saveTokens(newAccessToken: string, newRefreshToken: string) {
+  // Update module-level variables to keep them in sync
+  accessToken = newAccessToken;
+  refreshToken = newRefreshToken;
+  await SecureStore.setItemAsync("accessToken", newAccessToken);
+  await SecureStore.setItemAsync("refreshToken", newRefreshToken);
 }
 
 export async function clearTokens() {
@@ -74,41 +82,64 @@ api.interceptors.response.use(
 
     // If request failed due to unauthorized and we haven't retried yet
     if (
-      error.response?.status === 401 || error.response?.status === 403 &&
+      (error.response?.status === 401 || error.response?.status === 403) &&
       !originalRequest._retry &&
       !(originalRequest as any).skipAuth
     ) {
       originalRequest._retry = true;
 
-      const refreshToken = await loadRefreshToken();
-      if (!refreshToken) {
+      const refreshTokenValue = await loadRefreshToken();
+      if (!refreshTokenValue) {
         await clearTokens();
-        router.replace("/signin"); // redirect to login
+        // Use setTimeout to ensure state is cleared before redirect
+        setTimeout(() => {
+          router.replace("/signin");
+        }, 100);
         return Promise.reject(error);
       }
 
       try {
         const { data } = await axios.post(
           `${process.env.EXPO_PUBLIC_API_URL}/auth/refreshToken`,
-          { token: refreshToken },
+          { token: refreshTokenValue },
           { skipAuth: true } // prevent infinite loop
         );
 
+        // Update tokens in SecureStore and module state
         await saveTokens(data.accessToken, data.refreshToken);
 
         // re-fetch user and update in SecureStore
+        // Note: We use the api instance which will automatically use the new token
         try {
             const meRes = await api.get("/auth/getUser"); 
             await SecureStore.setItemAsync("user", JSON.stringify(meRes.data));
         } catch (meErr) {
             console.warn("Could not refresh user:", meErr);
+            // Don't fail the token refresh if user fetch fails
+            // The user can still use the app with refreshed tokens
         }
 
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        // Update the original request with new token
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        }
         return api(originalRequest); // retry request
       } catch (refreshError: any) {
+        console.error("Token refresh failed:", refreshError);
         await clearTokens();
-        router.replace("/signin"); // redirect to login
+        // Only redirect if refresh token is actually invalid (not network error)
+        const isTokenInvalid = 
+          refreshError?.response?.status === 401 || 
+          refreshError?.response?.status === 403 ||
+          refreshError?.response?.status === 400;
+        
+        if (isTokenInvalid) {
+          // Use setTimeout to ensure state is cleared before redirect
+          setTimeout(() => {
+            router.replace("/signin");
+          }, 100);
+        }
+        // If it's a network error, don't redirect - user might regain connectivity
         return Promise.reject(refreshError);
       }
     }

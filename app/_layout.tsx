@@ -18,9 +18,10 @@ SplashScreen.preventAutoHideAsync();
 
 function AuthGate() {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
-
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -31,30 +32,80 @@ function AuthGate() {
         } catch (error) {
           setOnboardingCompleted(false);
         }
+      } else {
+        setOnboardingCompleted(null);
       }
       setCheckingOnboarding(false);
+      
+      // After first load, mark as no longer initial
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
     };
 
     if (!loading) {
       checkOnboarding();
     }
-  }, [user, loading]);
+  }, [user, loading, isInitialLoad]);
+
+  // Handle programmatic navigation after state changes (post-sign-in)
+  // This ensures immediate navigation when user signs in
+  useEffect(() => {
+    // Don't navigate while loading, checking onboarding, or on initial load (let Redirect handle that)
+    if (loading || checkingOnboarding || isInitialLoad) {
+      return;
+    }
+
+    // Use requestAnimationFrame + setTimeout to ensure state updates are processed
+    // This ensures navigation happens after React has processed all state updates
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const frameId = requestAnimationFrame(() => {
+      timeoutId = setTimeout(() => {
+        try {
+          if (!user) {
+            // User is not signed in - navigate to sign in
+            router.replace("/signin");
+          } else if (onboardingCompleted === false) {
+            // User is signed in but onboarding not completed
+            router.replace("/onboarding/emotions");
+          } else if (onboardingCompleted === true) {
+            // User is signed in and onboarding completed
+            router.replace("/(tabs)");
+          }
+        } catch (error) {
+          console.error("Navigation error in AuthGate:", error);
+        }
+      }, 100); // Small delay to ensure state is stable
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [user, loading, onboardingCompleted, checkingOnboarding, isInitialLoad, router]);
 
   // Show loading while checking auth and onboarding
   if (loading || checkingOnboarding) {
     return <LoadingScreen />;
   }
 
+  // Use Redirect for initial render and fallback
+  // Programmatic navigation handles state changes after initial load
   if (!user) {
     return <Redirect href="/signin" />;
   }
 
-  // Redirect to onboarding if not completed
-  if (!onboardingCompleted) {
+  if (onboardingCompleted === false) {
     return <Redirect href="/onboarding/emotions" />;
   }
 
-  return <Redirect href="/(tabs)" />;
+  if (onboardingCompleted === true) {
+    return <Redirect href="/(tabs)" />;
+  }
+
+  return <LoadingScreen />;
 }
 
 function CustomBackButton() {
