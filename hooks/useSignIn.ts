@@ -213,6 +213,12 @@ export function useSignInContainer() {
   }, [googleAuthMutation]);
 
   const handleAppleSignIn = useCallback(async () => {
+    // Prevent multiple simultaneous sign-in attempts
+    if (appleAuthMutation.isPending) {
+      console.log("Apple sign-in already in progress");
+      return;
+    }
+
     // Reset cancellation flag when starting new sign-in
     isCancelledRef.current.apple = false;
 
@@ -242,6 +248,20 @@ export function useSignInContainer() {
         console.log("Apple sign-in was cancelled by user");
         isCancelledRef.current.apple = true;
         return; // User cancelled, don't show error
+      }
+
+      // Check for "authorization attempt failed" error - this often happens when
+      // trying to sign in immediately after sign-out or when auth state is transitioning
+      const isAuthStateError = 
+        err.message?.toLowerCase().includes("authorization attempt failed") ||
+        err.message?.toLowerCase().includes("unknown reason") ||
+        err.code === "ERR_INVALID_RESPONSE";
+
+      if (isAuthStateError) {
+        console.log("Apple auth state error - likely timing issue, not showing error to user");
+        // Don't show error for this - it's often a transient state issue
+        // The user can try again
+        return;
       }
 
       // For actual errors, show alert

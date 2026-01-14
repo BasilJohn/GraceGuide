@@ -56,12 +56,16 @@ export default function ProfileScreen() {
           onPress: async () => {
             setIsLoggingOut(true);
             try {
+              // Clear auth state - AuthGate will handle navigation automatically
               await signOut();
-              router.replace("/signin");
+              // Small delay to ensure sign-out completes and auth state is fully cleared
+              // This prevents "authorization attempt failed" errors when user immediately tries to sign in again
+              await new Promise(resolve => setTimeout(resolve, 300));
+              // Keep loading state visible briefly for smooth transition
+              // AuthGate will navigate to signin when user becomes null
             } catch (error) {
-              Alert.alert("Error", "Failed to sign out. Please try again.");
-            } finally {
               setIsLoggingOut(false);
+              Alert.alert("Error", "Failed to sign out. Please try again.");
             }
           },
         },
@@ -412,17 +416,30 @@ export default function ProfileScreen() {
             </View>
           </Animated.View>
 
-          {/* Loading Overlay */}
-          {(isLoggingOut || isDeleting) && (
-            <View style={styles.loadingOverlay}>
-              <View style={styles.loadingContent}>
-                <Text style={[styles.loadingText, { color: textColor }]}>
-                  {isDeleting ? "Deleting account..." : "Signing out..."}
-                </Text>
-              </View>
-            </View>
-          )}
         </ScrollView>
+
+        {/* Loading Overlay - Outside ScrollView to cover entire screen */}
+        {(isLoggingOut || isDeleting) && (
+          <View style={[
+            styles.loadingOverlay,
+            { backgroundColor: isDark ? "rgba(0, 0, 0, 0.85)" : "rgba(0, 0, 0, 0.75)" }
+          ]}>
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              style={[
+                styles.loadingContent,
+                {
+                  backgroundColor: isDark ? COLORS.elementDark : COLORS.elementLight,
+                  borderColor: borderColor,
+                }
+              ]}
+            >
+              <Text style={[styles.loadingText, { color: textColor }]}>
+                {isDeleting ? "Deleting account..." : "Signing out..."}
+              </Text>
+            </Animated.View>
+          </View>
+        )}
       </SafeAreaView>
     </GradientBackground>
   );
@@ -650,20 +667,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 24,
+    zIndex: 1000,
   },
   loadingContent: {
-    backgroundColor: COLORS.elementLight,
-    padding: 24,
-    borderRadius: 16,
+    paddingHorizontal: 32,
+    paddingVertical: 20,
+    borderRadius: 20,
+    borderWidth: 1,
     shadowColor: COLORS.shadowBlack,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 12,
+    minWidth: 200,
+    alignItems: "center",
   },
   loadingText: {
     fontSize: 16,

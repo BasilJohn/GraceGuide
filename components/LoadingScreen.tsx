@@ -197,9 +197,12 @@ export default function LoadingScreen() {
           entering={FadeInDown.delay(700).duration(600)}
           style={styles.dotsContainer}
         >
-          <AnimatedView style={[styles.dot, dot1Style, { backgroundColor: COLORS.secondary }]} />
-          <AnimatedView style={[styles.dot, dot2Style, { backgroundColor: COLORS.secondary }]} />
-          <AnimatedView style={[styles.dot, dot3Style, { backgroundColor: COLORS.secondary }]} />
+          {/* Wrapper to separate layout animation from opacity animation */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <AnimatedView style={[styles.dot, dot1Style, { backgroundColor: COLORS.secondary }]} />
+            <AnimatedView style={[styles.dot, dot2Style, { backgroundColor: COLORS.secondary }]} />
+            <AnimatedView style={[styles.dot, dot3Style, { backgroundColor: COLORS.secondary }]} />
+          </View>
         </Animated.View>
 
         {/* Progress Bar */}

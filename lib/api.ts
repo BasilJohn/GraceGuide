@@ -37,7 +37,7 @@ export async function loadRefreshToken() {
   return refreshToken;
 }
 
-async function saveTokens(newAccessToken: string, newRefreshToken: string) {
+export async function saveTokens(newAccessToken: string, newRefreshToken: string) {
   // Update module-level variables to keep them in sync
   accessToken = newAccessToken;
   refreshToken = newRefreshToken;
@@ -102,7 +102,7 @@ api.interceptors.response.use(
         const { data } = await axios.post(
           `${process.env.EXPO_PUBLIC_API_URL}/auth/refreshToken`,
           { token: refreshTokenValue },
-          { skipAuth: true } // prevent infinite loop
+          { skipAuth: true } as any // prevent infinite loop - skipAuth is a custom property
         );
 
         // Update tokens in SecureStore and module state

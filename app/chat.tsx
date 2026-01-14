@@ -4,32 +4,37 @@ import { FONTS } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useGraceGuideAPI } from "@/hooks/useGraceGuideAPI";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    FadeIn,
-    FadeInDown,
-    FadeInUp,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming,
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -108,6 +113,9 @@ export default function ChatScreen() {
     "Share a verse about hope",
     "Help me with forgiveness",
   ]);
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const textColor = isDark ? COLORS.textDark : COLORS.textLight;
   const placeholderColor = isDark ? COLORS.placeholderDark : COLORS.placeholderLight;
@@ -120,12 +128,66 @@ export default function ChatScreen() {
   const inputScale = useSharedValue(1);
   const sendButtonScale = useSharedValue(1);
 
+  // Keyboard listeners
   useEffect(() => {
-    // Scroll to bottom when new messages arrive
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-  }, [messages, isTyping]);
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  // Improved scroll to bottom function with better timing
+  const scrollToBottom = useCallback((animated: boolean = true) => {
+    if (scrollViewRef.current) {
+      // Use requestAnimationFrame to ensure layout is complete before scrolling
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated });
+        }, animated ? 200 : 100);
+      });
+    }
+  }, []);
+
+  // Scroll to bottom when messages change or typing indicator appears
+  useEffect(() => {
+    scrollToBottom(true);
+  }, [messages, isTyping, scrollToBottom]);
+
+  // Handle keyboard events to ensure messages are visible
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        // Scroll to bottom when keyboard appears to show latest messages
+        scrollToBottom(true);
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        // Optional: adjust scroll position when keyboard hides
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, [scrollToBottom]);
 
   // Load conversation ID and pending chat response on mount
   useEffect(() => {
@@ -280,6 +342,95 @@ export default function ChatScreen() {
     }, 100);
   };
 
+  const handleMessageLongPress = (message: Message) => {
+    // Haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    // Store selected message and show custom action sheet
+    setSelectedMessage(message);
+    setShowActionSheet(true);
+  };
+
+  const handleActionSheetClose = () => {
+    setShowActionSheet(false);
+    setSelectedMessage(null);
+  };
+
+  const handleActionSheetAction = async (action: "copy" | "share") => {
+    if (!selectedMessage) return;
+
+    // Format message text for sharing (include verse if available)
+    let shareText = selectedMessage.text;
+    if (selectedMessage.verse) {
+      shareText += `\n\n"${selectedMessage.verse.text}"\n— ${selectedMessage.verse.reference}`;
+    }
+
+    if (action === "copy") {
+      // Close action sheet first, then copy
+      handleActionSheetClose();
+      await handleCopyMessage(shareText);
+    } else if (action === "share") {
+      // For share, close action sheet first, then open share dialog
+      handleActionSheetClose();
+      // Small delay to ensure action sheet closes before share dialog opens
+      setTimeout(() => {
+        handleShareMessage(shareText);
+      }, 200);
+    }
+  };
+
+  const handleCopyMessage = async (text: string) => {
+    try {
+      // Copy text to clipboard
+      await Clipboard.setStringAsync(text);
+      
+      // Provide haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Show visual feedback - use Alert on all platforms for consistency
+      // On iOS, this will show as an alert, but it's better UX than no feedback
+      Alert.alert("Copied", "Message copied to clipboard", [{ text: "OK" }]);
+    } catch (error) {
+      console.error("Failed to copy message:", error);
+      Alert.alert("Error", "Failed to copy message", [{ text: "OK" }]);
+    }
+  };
+
+  const handleShareMessage = async (text: string) => {
+    try {
+      // Share.share() opens the native OS share sheet
+      // On iOS: Opens iOS share sheet with options to share via Messages, Mail, etc.
+      // On Android: Opens Android share sheet with options to share via apps
+      const shareOptions = {
+        message: text, // The message content to share
+        // title is supported on Android, and iOS (as of iOS 8)
+        title: "Message from Grace",
+      };
+
+      const result = await Share.share(shareOptions);
+
+      // Provide haptic feedback if user actually shared (not just dismissed)
+      if (result.action === Share.sharedAction) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      // If user dismissed (result.action === Share.dismissedAction), do nothing - that's expected
+    } catch (error: any) {
+      // Handle errors - don't show error if user just cancelled/dismissed the share dialog
+      const isCancellationError =
+        error.message === "User did not share" ||
+        error.message === "User cancelled the ShareDialog" ||
+        error.message?.includes("cancelled") ||
+        error.message?.includes("canceled") ||
+        error.message?.includes("dismissed");
+
+      if (!isCancellationError) {
+        console.error("Failed to share message:", error);
+        Alert.alert("Error", "Failed to share message", [{ text: "OK" }]);
+      }
+      // Silently handle user cancellation - that's expected behavior
+    }
+  };
+
   const inputAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: inputScale.value }],
   }));
@@ -318,64 +469,74 @@ export default function ChatScreen() {
   return (
     <GradientBackground useSafeArea={false}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <KeyboardAvoidingView
-          style={styles.keyboardView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+        {/* Fixed Header - Outside KeyboardAvoidingView */}
+        <Animated.View
+          entering={FadeInDown.duration(400)}
+          style={[
+            styles.header,
+            {
+              backgroundColor: isDark ? COLORS.backgroundDark : COLORS.backgroundLight,
+              borderBottomColor: borderColor + "30",
+            },
+          ]}
         >
-          {/* Fixed Header */}
-          <Animated.View
-            entering={FadeInDown.duration(400)}
+          <TouchableOpacity
+            onPress={handleBack}
             style={[
-              styles.header,
+              styles.backButton,
               {
-                backgroundColor: isDark ? COLORS.backgroundDark : COLORS.backgroundLight,
-                borderBottomColor: borderColor + "30",
+                backgroundColor: isDark
+                  ? COLORS.elementDark + "80"
+                  : COLORS.elementLight + "80",
               },
             ]}
+            activeOpacity={0.7}
           >
-            <TouchableOpacity
-              onPress={handleBack}
-              style={[
-                styles.backButton,
-                {
-                  backgroundColor: isDark
-                    ? COLORS.elementDark + "80"
-                    : COLORS.elementLight + "80",
-                },
-              ]}
-              activeOpacity={0.7}
+            <Ionicons name="arrow-back" size={22} color={textColor} />
+          </TouchableOpacity>
+
+          <View style={styles.headerCenter}>
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.primaryLight, COLORS.accent]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerIcon}
             >
-              <Ionicons name="arrow-back" size={22} color={textColor} />
-            </TouchableOpacity>
-
-            <View style={styles.headerCenter}>
-              <LinearGradient
-                colors={[COLORS.primary, COLORS.primaryLight, COLORS.accent]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.headerIcon}
-              >
-                <Ionicons name="sparkles" size={20} color={COLORS.white} />
-              </LinearGradient>
-              <View>
-                <Text style={[styles.headerTitle, { color: textColor }]}>Grace</Text>
-                <Text style={[styles.headerSubtitle, { color: placeholderColor }]}>
-                  AI Companion
-                </Text>
-              </View>
+              <Ionicons name="sparkles" size={20} color={COLORS.white} />
+            </LinearGradient>
+            <View>
+              <Text style={[styles.headerTitle, { color: textColor }]}>Grace</Text>
+              <Text style={[styles.headerSubtitle, { color: placeholderColor }]}>
+                AI Companion
+              </Text>
             </View>
+          </View>
 
-            <View style={styles.backButton} />
-          </Animated.View>
+          <View style={styles.backButton} />
+        </Animated.View>
 
+        <View style={styles.keyboardView}>
           {/* Messages Area */}
           <ScrollView
             ref={scrollViewRef}
             style={styles.messagesContainer}
-            contentContainerStyle={styles.messagesContent}
+            contentContainerStyle={[
+              styles.messagesContent,
+              {
+                paddingBottom: 8, // Minimal padding - input is outside ScrollView
+              },
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            onContentSizeChange={() => {
+              // Auto-scroll when content size changes (e.g., long message renders)
+              scrollToBottom(true);
+            }}
+            onLayout={() => {
+              // Scroll to bottom when layout changes (e.g., keyboard appears)
+              scrollToBottom(false);
+            }}
           >
             {/* Welcome Message */}
             {messages.map((message, index) => (
@@ -400,8 +561,16 @@ export default function ChatScreen() {
                   </View>
                 )}
 
-                <View
-                  style={[
+                <Pressable
+                  onLongPress={() => handleMessageLongPress(message)}
+                  delayLongPress={500}
+                  android_ripple={{
+                    color: message.isUser 
+                      ? "rgba(255, 255, 255, 0.2)" 
+                      : "rgba(0, 0, 0, 0.1)",
+                    borderless: false,
+                  }}
+                  style={({ pressed }) => [
                     styles.messageBubble,
                     message.isUser
                       ? [styles.userBubble, { backgroundColor: COLORS.secondary }]
@@ -412,6 +581,7 @@ export default function ChatScreen() {
                             borderColor: borderColor,
                           },
                         ],
+                    pressed && { opacity: 0.8 }, // Visual feedback on press
                   ]}
                 >
                   <Text
@@ -421,6 +591,7 @@ export default function ChatScreen() {
                         color: message.isUser ? COLORS.white : textColor,
                       },
                     ]}
+                    textBreakStrategy="highQuality"
                   >
                     {message.text}
                   </Text>
@@ -460,7 +631,7 @@ export default function ChatScreen() {
                       </Text>
                     </Animated.View>
                   )}
-                </View>
+                </Pressable>
               </Animated.View>
             ))}
 
@@ -535,19 +706,22 @@ export default function ChatScreen() {
             )}
           </ScrollView>
 
-          {/* Input Area */}
-          <Animated.View
+          {/* Input Area - Fixed at bottom, always visible with keyboard-aware padding */}
+          <View
             style={[
               styles.inputContainer,
               {
                 backgroundColor: isDark ? COLORS.backgroundDark : COLORS.backgroundLight,
                 borderTopColor: borderColor + "30",
-                paddingBottom: Math.max(insets.bottom, 20),
+                paddingTop: 8,
+                paddingBottom: keyboardHeight > 0 
+                  ? Math.max(insets.bottom, 8) + (Platform.OS === "android" ? keyboardHeight : 0)
+                  : Math.max(insets.bottom, 8),
+                marginBottom: keyboardHeight > 0 && Platform.OS === "ios" ? keyboardHeight - insets.bottom : 0,
               },
-              inputAnimatedStyle,
             ]}
           >
-            <Animated.View
+            <View
               style={[
                 styles.inputWrapper,
                 {
@@ -589,9 +763,139 @@ export default function ChatScreen() {
                   />
                 </TouchableOpacity>
               </Animated.View>
+            </View>
+          </View>
+        </View>
+
+        {/* Custom Action Sheet Modal */}
+        <Modal
+          visible={showActionSheet}
+          transparent
+          animationType="fade"
+          onRequestClose={handleActionSheetClose}
+        >
+          <Pressable
+            style={styles.actionSheetOverlay}
+            onPress={handleActionSheetClose}
+          >
+            <Animated.View
+              entering={FadeInUp.duration(200)}
+              style={[
+                styles.actionSheetContainer,
+                {
+                  backgroundColor: elementBg,
+                  borderColor: borderColor,
+                },
+              ]}
+              onStartShouldSetResponder={() => true}
+            >
+              <View style={styles.actionSheetHeader}>
+                <Text style={[styles.actionSheetTitle, { color: textColor }]}>
+                  Message Options
+                </Text>
+              </View>
+
+              <View style={styles.actionSheetDivider} />
+
+              {/* Copy Option */}
+              <TouchableOpacity
+                style={[
+                  styles.actionSheetButton,
+                  {
+                    backgroundColor: isDark
+                      ? COLORS.tealAccent10
+                      : COLORS.tealAccent10,
+                  },
+                ]}
+                onPress={() => handleActionSheetAction("copy")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.actionSheetButtonContent}>
+                  <LinearGradient
+                    colors={[COLORS.primary, COLORS.primaryLight]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.actionSheetIconContainer}
+                  >
+                    <Ionicons name="copy-outline" size={20} color={COLORS.white} />
+                  </LinearGradient>
+                  <Text style={[styles.actionSheetButtonText, { color: textColor }]}>
+                    Copy
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={placeholderColor}
+                />
+              </TouchableOpacity>
+
+              {/* Share Option */}
+              <TouchableOpacity
+                style={[
+                  styles.actionSheetButton,
+                  {
+                    backgroundColor: isDark
+                      ? COLORS.coralAccent10
+                      : COLORS.coralAccent10,
+                  },
+                ]}
+                onPress={() => handleActionSheetAction("share")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.actionSheetButtonContent}>
+                  <LinearGradient
+                    colors={[COLORS.secondary, COLORS.hope]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.actionSheetIconContainer}
+                  >
+                    <Ionicons name="share-outline" size={20} color={COLORS.white} />
+                  </LinearGradient>
+                  <Text style={[styles.actionSheetButtonText, { color: textColor }]}>
+                    Share
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={placeholderColor}
+                />
+              </TouchableOpacity>
+
+              <View
+                style={[
+                  styles.actionSheetDivider,
+                  { backgroundColor: borderColor + "30" },
+                ]}
+              />
+
+              {/* Cancel Button */}
+              <TouchableOpacity
+                style={[
+                  styles.actionSheetCancelButton,
+                  {
+                    backgroundColor: isDark
+                      ? COLORS.elementDark
+                      : COLORS.elementLight,
+                    borderColor: borderColor,
+                  },
+                ]}
+                onPress={handleActionSheetClose}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.actionSheetCancelText,
+                    { color: isDark ? COLORS.textDark : COLORS.secondary },
+                  ]}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
             </Animated.View>
-          </Animated.View>
-        </KeyboardAvoidingView>
+          </Pressable>
+        </Modal>
       </SafeAreaView>
     </GradientBackground>
   );
@@ -612,6 +916,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
     borderBottomWidth: 1,
+    zIndex: 100, // Ensure header stays on top
   },
   backButton: {
     width: 44,
@@ -647,11 +952,13 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
+    flexGrow: 1,
   },
   messagesContent: {
     paddingHorizontal: 20,
     paddingTop: 24,
-    paddingBottom: 20,
+    paddingBottom: 80, // Reduced base padding (will be overridden dynamically)
+    flexGrow: 1, // Ensure content can grow and be scrollable
   },
   messageWrapper: {
     flexDirection: "row",
@@ -694,9 +1001,10 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 24, // Increased line height for better readability
     fontWeight: "400",
     letterSpacing: 0.2,
+    flexShrink: 1, // Allow text to shrink if needed
   },
   verseCard: {
     marginTop: 12,
@@ -738,7 +1046,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   suggestionsContainer: {
-    marginTop: 24,
+    marginTop: 16,
+    marginBottom: 8,
   },
   suggestionsTitle: {
     fontSize: 14,
@@ -764,8 +1073,11 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 8,
     borderTopWidth: 1,
+    width: "100%",
+    zIndex: 10,
+    backgroundColor: "transparent", // Will be overridden by inline style
   },
   inputWrapper: {
     flexDirection: "row",
@@ -773,9 +1085,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8, // Reduced from 10 for tighter spacing
     gap: 12,
-    minHeight: 56,
+    minHeight: 48, // Reduced from 52 for more compact input
     maxHeight: 120,
   },
   textInput: {
@@ -791,6 +1103,87 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+  },
+  // Action Sheet Styles
+  actionSheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  actionSheetContainer: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.shadowBlack,
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  actionSheetHeader: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  actionSheetTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    fontFamily: FONTS.header,
+    letterSpacing: -0.3,
+  },
+  actionSheetDivider: {
+    height: 1,
+    marginVertical: 12,
+  },
+  actionSheetButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  actionSheetButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  actionSheetIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  actionSheetButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 0.1,
+  },
+  actionSheetCancelButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  actionSheetCancelText: {
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 0.1,
   },
 });
 

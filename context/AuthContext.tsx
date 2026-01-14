@@ -1,13 +1,13 @@
-import { clearTokens } from "@/lib/api";
+import { clearTokens, saveTokens } from "@/lib/api";
 import { AuthContextType, AuthTokens, User } from "@/types/types";
 import * as SecureStore from "expo-secure-store";
 import React, {
-  createContext,
-  ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
+    createContext,
+    ReactNode,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
 } from "react";
 import { AppState, AppStateStatus } from "react-native";
 
@@ -30,9 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ]);
 
         if (storedAccessToken && storedRefreshToken && storedUser) {
-          // On startup, just load the tokens and user
-          // Token validation will happen naturally on first API call via interceptor
-          // This avoids race conditions and double refresh attempts
+          // On startup, load the tokens and user, and sync with API module
+          // Sync tokens to API module so interceptors can use them immediately
+          await saveTokens(storedAccessToken, storedRefreshToken);
+          
           setTokens({
             accessToken: storedAccessToken,
             refreshToken: storedRefreshToken,
@@ -56,6 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Listen for app state changes to sync tokens when app comes to foreground
+  // This ensures AuthContext state stays in sync with SecureStore
+  // (e.g., when tokens are refreshed by API interceptor)
   useEffect(() => {
     // Only set up listener after initial load is complete
     if (loading) return;
@@ -73,6 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ]);
 
           if (storedAccessToken && storedRefreshToken && storedUser) {
+            // Sync tokens with API module to ensure they're available for interceptors
+            await saveTokens(storedAccessToken, storedRefreshToken);
+            
             // Update state with latest tokens and user from SecureStore
             setTokens({
               accessToken: storedAccessToken,
@@ -104,12 +110,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign in (save user + tokens)
   const signIn = useCallback(async (newUser: User, newTokens: AuthTokens) => {
     try {
-      // Write everything at once before any re-render
-      await Promise.all([
-        SecureStore.setItemAsync("accessToken", newTokens.accessToken),
-        SecureStore.setItemAsync("refreshToken", newTokens.refreshToken),
-        SecureStore.setItemAsync("user", JSON.stringify(newUser)),
-      ]);
+      // Sync tokens with API module first, then save to SecureStore
+      // This ensures API interceptors can use tokens immediately
+      await saveTokens(newTokens.accessToken, newTokens.refreshToken);
+      
+      // Write user to SecureStore
+      await SecureStore.setItemAsync("user", JSON.stringify(newUser));
 
       // Update state after storage completes
       setUser(newUser);

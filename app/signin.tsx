@@ -97,7 +97,8 @@ export default function SignInScreen() {
       { scale: logoScale.value },
       { rotate: `${logoRotation.value}deg` },
     ],
-    opacity: logoGlow.value,
+    // Removed opacity to avoid conflict with FadeInDown layout animation
+    // Opacity animation is handled by the outer glow instead
   }));
 
   const sparkleAnimatedStyle = useAnimatedStyle(() => ({
@@ -128,6 +129,7 @@ export default function SignInScreen() {
           entering={FadeInDown.delay(200).springify().damping(15)}
           style={styles.logoContainer}
         >
+          {/* Wrapper to separate layout animation from style animation */}
           <AnimatedView style={logoAnimatedStyle}>
             {/* Outer glow ring */}
             <AnimatedView
