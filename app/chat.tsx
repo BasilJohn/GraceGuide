@@ -116,6 +116,11 @@ export default function ChatScreen() {
     subscriptionTier: "free" | "paid";
   } | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState<{
+    messageId: string;
+    totalLength: number;
+    endIndex: number;
+  } | null>(null);
   const [suggestions, setSuggestions] = useState([
     "I'm feeling anxious",
     "I need encouragement",
@@ -157,6 +162,34 @@ export default function ChatScreen() {
       hideSubscription.remove();
     };
   }, []);
+
+  // Typing effect for AI messages: reveal text over time (snappy, not too slow)
+  const streamingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!streamingMessage) return;
+    const CHAR_CHUNK = 2;
+    const MS_PER_TICK = 22;
+    streamingIntervalRef.current = setInterval(() => {
+      setStreamingMessage((prev) => {
+        if (!prev) return null;
+        const next = prev.endIndex + CHAR_CHUNK;
+        if (next >= prev.totalLength) {
+          if (streamingIntervalRef.current) {
+            clearInterval(streamingIntervalRef.current);
+            streamingIntervalRef.current = null;
+          }
+          return null;
+        }
+        return { ...prev, endIndex: next };
+      });
+    }, MS_PER_TICK);
+    return () => {
+      if (streamingIntervalRef.current) {
+        clearInterval(streamingIntervalRef.current);
+        streamingIntervalRef.current = null;
+      }
+    };
+  }, [streamingMessage?.messageId, streamingMessage?.totalLength]);
 
   // Fetch chat usage for paywall (optional: on failure we allow send and rely on 402)
   useEffect(() => {
@@ -300,7 +333,7 @@ export default function ChatScreen() {
         await SecureStore.setItemAsync("currentConversationId", response.conversationId);
       }
 
-      // Add AI response to messages
+      // Add AI response to messages (full text; we'll reveal with typing effect)
       const aiResponse: Message = {
         id: response.response.id,
         text: response.response.text,
@@ -309,6 +342,12 @@ export default function ChatScreen() {
         verse: response.response.verse,
       };
       setMessages((prev) => [...prev, aiResponse]);
+      setIsTyping(false); // Hide dots; typing effect will show the message
+      setStreamingMessage({
+        messageId: response.response.id,
+        totalLength: response.response.text.length,
+        endIndex: 0,
+      });
 
       // Refetch usage so remaining count updates
       getChatUsage().then(setChatUsage).catch(() => {});
@@ -588,10 +627,17 @@ export default function ChatScreen() {
                     ]}
                     textBreakStrategy="highQuality"
                   >
-                    {message.text}
+                    {!message.isUser &&
+                    streamingMessage?.messageId === message.id
+                      ? message.text.slice(0, streamingMessage.endIndex)
+                      : message.text}
                   </Text>
 
-                  {message.verse && (
+                  {message.verse &&
+                    (message.isUser ||
+                      !streamingMessage ||
+                      streamingMessage.messageId !== message.id ||
+                      streamingMessage.endIndex >= streamingMessage.totalLength) && (
                     <Animated.View
                       entering={FadeIn.delay(300).duration(400)}
                       style={[
