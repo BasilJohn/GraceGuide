@@ -2,6 +2,7 @@ import {
   AppleAuthResponse,
   ChatMessageRequest,
   ChatMessageResponse,
+  ChatUsageResponse,
   CheckInRequest,
   CheckInResponse,
   CheckInsListResponse,
@@ -114,6 +115,11 @@ export async function getRecentCheckIns(
 }
 
 // Chat APIs
+export async function getChatUsage(): Promise<ChatUsageResponse> {
+  const response = await api.get<ChatUsageResponse>(`api/chat/usage`);
+  return response.data;
+}
+
 export async function sendChatMessage(
   data: ChatMessageRequest
 ): Promise<ChatMessageResponse> {

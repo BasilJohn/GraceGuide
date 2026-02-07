@@ -1,8 +1,9 @@
 import GradientBackground from "@/components/GradientBackground";
+import { PaywallModal } from "@/components/PaywallModal";
 import { COLORS } from "@/constants/colors";
 import { FONTS } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useGraceGuideAPI } from "@/hooks/useGraceGuideAPI";
+import { useGraceGuideAPI, type PaywallError } from "@/hooks/useGraceGuideAPI";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
@@ -101,12 +102,20 @@ export default function ChatScreen() {
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
-  const { sendChatMessage } = useGraceGuideAPI();
+  const { getChatUsage, sendChatMessage } = useGraceGuideAPI();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
+  const [chatUsage, setChatUsage] = useState<{
+    used: number;
+    limit: number;
+    remaining: number;
+    paywall: boolean;
+    subscriptionTier: "free" | "paid";
+  } | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [suggestions, setSuggestions] = useState([
     "I'm feeling anxious",
     "I need encouragement",
@@ -149,45 +158,20 @@ export default function ChatScreen() {
     };
   }, []);
 
-  // Improved scroll to bottom function with better timing
-  const scrollToBottom = useCallback((animated: boolean = true) => {
-    if (scrollViewRef.current) {
-      // Use requestAnimationFrame to ensure layout is complete before scrolling
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated });
-        }, animated ? 200 : 100);
+  // Fetch chat usage for paywall (optional: on failure we allow send and rely on 402)
+  useEffect(() => {
+    let cancelled = false;
+    getChatUsage()
+      .then((usage) => {
+        if (!cancelled) setChatUsage(usage);
+      })
+      .catch(() => {
+        // Allow send; backend will return 402 if over limit
       });
-    }
-  }, []);
-
-  // Scroll to bottom when messages change or typing indicator appears
-  useEffect(() => {
-    scrollToBottom(true);
-  }, [messages, isTyping, scrollToBottom]);
-
-  // Handle keyboard events to ensure messages are visible
-  useEffect(() => {
-    const keyboardWillShowListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => {
-        // Scroll to bottom when keyboard appears to show latest messages
-        scrollToBottom(true);
-      }
-    );
-
-    const keyboardWillHideListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        // Optional: adjust scroll position when keyboard hides
-      }
-    );
-
     return () => {
-      keyboardWillShowListener.remove();
-      keyboardWillHideListener.remove();
+      cancelled = true;
     };
-  }, [scrollToBottom]);
+  }, [getChatUsage]);
 
   // Load conversation ID and pending chat response on mount
   useEffect(() => {
@@ -277,8 +261,16 @@ export default function ChatScreen() {
     }
   }, [isTyping]);
 
+  const isPaid = chatUsage?.subscriptionTier === "paid";
+  const isOverLimit = !isPaid && chatUsage?.paywall === true;
+
   const handleSend = async () => {
     if (!inputText.trim() || isTyping) return;
+
+    if (isOverLimit) {
+      setShowPaywall(true);
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -289,6 +281,7 @@ export default function ChatScreen() {
 
     setMessages((prev) => [...prev, userMessage]);
     const messageToSend = inputText.trim();
+    const userMessageId = userMessage.id;
     setInputText("");
     setIsTyping(true);
     Keyboard.dismiss();
@@ -304,7 +297,6 @@ export default function ChatScreen() {
       // Update conversation ID if this is a new conversation
       if (response.conversationId && !conversationId) {
         setConversationId(response.conversationId);
-        // Optionally save to SecureStore for persistence
         await SecureStore.setItemAsync("currentConversationId", response.conversationId);
       }
 
@@ -317,15 +309,26 @@ export default function ChatScreen() {
         verse: response.response.verse,
       };
       setMessages((prev) => [...prev, aiResponse]);
+
+      // Refetch usage so remaining count updates
+      getChatUsage().then(setChatUsage).catch(() => {});
     } catch (error: any) {
+      if ((error as PaywallError).isPaywall) {
+        const paywallErr = error as PaywallError;
+        setMessages((prev) => prev.filter((m) => m.id !== userMessageId));
+        setChatUsage({
+          used: paywallErr.used,
+          limit: paywallErr.limit,
+          remaining: paywallErr.remaining,
+          paywall: true,
+          subscriptionTier: "free",
+        });
+        setShowPaywall(true);
+        return;
+      }
       console.error("Failed to send message:", error);
-      
-      // Show error message to user
       const errorMessage = error.message || "Failed to send message. Please try again.";
       Alert.alert("Error", errorMessage, [{ text: "OK" }]);
-      
-      // Optionally remove the user message if sending failed
-      // setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
     } finally {
       setIsTyping(false);
     }
@@ -529,14 +532,6 @@ export default function ChatScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
-            onContentSizeChange={() => {
-              // Auto-scroll when content size changes (e.g., long message renders)
-              scrollToBottom(true);
-            }}
-            onLayout={() => {
-              // Scroll to bottom when layout changes (e.g., keyboard appears)
-              scrollToBottom(false);
-            }}
           >
             {/* Welcome Message */}
             {messages.map((message, index) => (
@@ -721,23 +716,37 @@ export default function ChatScreen() {
               },
             ]}
           >
+            {isOverLimit && (
+              <TouchableOpacity
+                onPress={() => setShowPaywall(true)}
+                style={[styles.paywallHint, { backgroundColor: COLORS.tealAccent10, borderColor }]}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="diamond-outline" size={16} color={COLORS.primary} />
+                <Text style={[styles.paywallHintText, { color: textColor }]}>
+                  You've used your {chatUsage?.limit ?? 3} free messages. Tap to upgrade.
+                </Text>
+              </TouchableOpacity>
+            )}
             <View
               style={[
                 styles.inputWrapper,
                 {
                   backgroundColor: inputBg,
                   borderColor: borderColor,
+                  opacity: isOverLimit ? 0.6 : 1,
                 },
               ]}
             >
               <TextInput
                 style={[styles.textInput, { color: textColor }]}
-                placeholder="Type your message..."
+                placeholder={isOverLimit ? "Upgrade to send more messages" : "Type your message..."}
                 placeholderTextColor={placeholderColor}
                 value={inputText}
                 onChangeText={setInputText}
                 multiline
                 maxLength={500}
+                editable={!isOverLimit}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
                 onSubmitEditing={handleSend}
@@ -745,7 +754,7 @@ export default function ChatScreen() {
               <Animated.View style={sendButtonAnimatedStyle}>
                 <TouchableOpacity
                   onPress={handleSendPress}
-                  disabled={!inputText.trim()}
+                  disabled={!isOverLimit && !inputText.trim()}
                   activeOpacity={0.7}
                   style={[
                     styles.sendButton,
@@ -896,6 +905,17 @@ export default function ChatScreen() {
             </Animated.View>
           </Pressable>
         </Modal>
+
+        <PaywallModal
+          visible={showPaywall}
+          onClose={() => {
+            setShowPaywall(false);
+            getChatUsage().then(setChatUsage).catch(() => {});
+          }}
+          used={chatUsage?.used}
+          limit={chatUsage?.limit}
+          remaining={chatUsage?.remaining}
+        />
       </SafeAreaView>
     </GradientBackground>
   );
@@ -1078,6 +1098,22 @@ const styles = StyleSheet.create({
     width: "100%",
     zIndex: 10,
     backgroundColor: "transparent", // Will be overridden by inline style
+  },
+  paywallHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  paywallHintText: {
+    fontSize: 13,
+    fontWeight: "500",
+    flex: 1,
+    letterSpacing: 0.1,
   },
   inputWrapper: {
     flexDirection: "row",

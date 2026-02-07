@@ -288,6 +288,30 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               </View>
+
+              {user?.subscriptionTier !== "premium" && !user?.isPremium && (
+                <>
+                  <View style={[styles.divider, { backgroundColor: borderColor }]} />
+                  <TouchableOpacity
+                    style={styles.detailRow}
+                    onPress={() => router.push("/paywall")}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.detailIconContainer, { backgroundColor: COLORS.tealAccent10 }]}>
+                      <Ionicons name="sparkles" size={22} color={COLORS.primary} />
+                    </View>
+                    <View style={styles.detailContent}>
+                      <Text style={[styles.detailLabel, { color: placeholderColor }]}>
+                        Upgrade
+                      </Text>
+                      <Text style={[styles.detailValue, { color: COLORS.primary, fontWeight: "600" }]}>
+                        $9.99/mo or $110/year
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={placeholderColor} />
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </Animated.View>
 

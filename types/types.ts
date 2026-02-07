@@ -87,6 +87,22 @@ export interface ChatMessageRequest {
   includeContext?: boolean;
 }
 
+export interface ChatUsageResponse {
+  used: number;
+  limit: number;
+  remaining: number;
+  paywall: boolean;
+  subscriptionTier: "free" | "paid";
+}
+
+export interface PaywallErrorPayload {
+  error: "paywall";
+  message: string;
+  used: number;
+  limit: number;
+  remaining: number;
+}
+
 export interface BibleVerse {
   reference: string;
   text: string;

@@ -1,4 +1,5 @@
 import {
+    getChatUsage,
     getConversationHistory,
     getDailyDevotional,
     getDailyScripture,
@@ -10,6 +11,7 @@ import {
 } from '@/lib/appApi';
 import {
     ChatMessageResponse,
+    ChatUsageResponse,
     CheckInResponse,
     CheckInsListResponse,
     ConversationHistoryResponse,
@@ -20,6 +22,14 @@ import {
     Emotion,
     Tone
 } from '@/types/types';
+
+export interface PaywallError extends Error {
+  isPaywall: true;
+  used: number;
+  limit: number;
+  remaining: number;
+  message: string;
+}
 import { useCallback, useState } from 'react';
 
 export const useGraceGuideAPI = () => {
@@ -64,6 +74,17 @@ export const useGraceGuideAPI = () => {
     }
   }, []);
 
+  // Chat usage (for paywall)
+  const handleGetChatUsage = useCallback(async (): Promise<ChatUsageResponse> => {
+    setError(null);
+    try {
+      return await getChatUsage();
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || 'Failed to fetch usage');
+      throw err;
+    }
+  }, []);
+
   // Chat Methods
   const handleSendChatMessage = useCallback(async (
     message: string,
@@ -76,6 +97,18 @@ export const useGraceGuideAPI = () => {
       const result = await sendChatMessage({ message, conversationId, includeContext });
       return result;
     } catch (err: any) {
+      if (err.response?.status === 402) {
+        const data = err.response?.data || {};
+        if (data.error === 'paywall') {
+          const paywallErr: PaywallError = new Error(data.message || 'Free chat limit reached. Upgrade to continue.') as PaywallError;
+          paywallErr.isPaywall = true;
+          paywallErr.used = data.used ?? data.limit ?? 3;
+          paywallErr.limit = data.limit ?? 3;
+          paywallErr.remaining = data.remaining ?? 0;
+          setError(paywallErr.message);
+          throw paywallErr;
+        }
+      }
       if (err.response?.status === 429) {
         const retryAfter = err.response.data?.retryAfter || 60;
         const errorMsg = `Rate limit exceeded. Please wait ${retryAfter} seconds.`;
@@ -183,6 +216,7 @@ export const useGraceGuideAPI = () => {
     error,
     submitCheckIn: handleSubmitCheckIn,
     getRecentCheckIns: handleGetRecentCheckIns,
+    getChatUsage: handleGetChatUsage,
     sendChatMessage: handleSendChatMessage,
     getConversationHistory: handleGetConversationHistory,
     listConversations: handleListConversations,

@@ -115,6 +115,7 @@ function StackWithHeaders() {
       <Stack.Screen name="checkin-modal" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="devotional-modal" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="chat" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="paywall" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen 
         name="modal" 

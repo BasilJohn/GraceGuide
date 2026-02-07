@@ -178,8 +178,15 @@ export default function CheckInToneScreen() {
               await SecureStore.setItemAsync("currentConversationId", chatResponse.conversationId);
             }
           } catch (error: any) {
-            console.error("Failed to fetch initial chat response:", error);
-            // Continue anyway - user can still chat
+            if (error.response?.status === 402 && error.response?.data?.error === "paywall") {
+              // Free chat limit reached; user will see paywall when chat opens
+              if (__DEV__) {
+                console.log("Chat paywall: skipping initial message (user at free limit)");
+              }
+            } else {
+              console.error("Failed to fetch initial chat response:", error);
+            }
+            // Continue anyway - user can still open chat (and see paywall if over limit)
           }
         }
 
