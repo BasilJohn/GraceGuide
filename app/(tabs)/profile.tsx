@@ -289,6 +289,27 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
+              <View style={[styles.divider, { backgroundColor: borderColor }]} />
+
+              <TouchableOpacity
+                style={styles.detailRow}
+                onPress={() => router.push("/onboarding")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.detailIconContainer, { backgroundColor: COLORS.lavenderAccent10 }]}>
+                  <Ionicons name="map" size={22} color={COLORS.accent} />
+                </View>
+                <View style={styles.detailContent}>
+                  <Text style={[styles.detailLabel, { color: placeholderColor }]}>
+                    App features
+                  </Text>
+                  <Text style={[styles.detailValue, { color: textColor }]}>
+                    Replay the intro tour
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={placeholderColor} />
+              </TouchableOpacity>
+
               {user?.subscriptionTier !== "premium" && !user?.isPremium && (
                 <>
                   <View style={[styles.divider, { backgroundColor: borderColor }]} />

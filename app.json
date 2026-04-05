@@ -2,12 +2,11 @@
   "expo": {
     "name": "GraceGuide",
     "slug": "GraceGuide",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "graceguide",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "usesAppleSignIn": true,
@@ -27,7 +26,7 @@
           }
         ]
       },
-      "buildNumber": "11"
+      "buildNumber": "15"
     },
     "android": {
       "adaptiveIcon": {
@@ -36,9 +35,9 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.graceguide.app"
+      "package": "com.graceguide.app",
+      "versionCode": 1
     },
     "web": {
       "output": "static",
@@ -50,8 +49,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/icon.png",
+          "imageWidth": 220,
           "resizeMode": "contain",
           "backgroundColor": "#F8F7F5",
           "dark": {
@@ -64,7 +63,11 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.392046591810-nio0kct7e0dtjd0dlqb70t3tdg6kj7dj"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

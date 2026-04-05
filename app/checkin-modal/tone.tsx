@@ -51,6 +51,21 @@ const toneOptions: ToneOption[] = [
   },
 ];
 
+const EMOTION_LABELS: Record<string, string> = {
+  loneliness: "lonely",
+  fear: "afraid",
+  anxiety: "anxious",
+  guilt: "guilty",
+  sadness: "sad",
+  anger: "angry",
+  grief: "grieving",
+  relationships: "struggling with relationships",
+};
+
+function formatEmotionPhrase(emotionIds: string[]): string {
+  return emotionIds.map((e) => EMOTION_LABELS[e] || e).join(", ");
+}
+
 export default function CheckInToneScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -85,130 +100,102 @@ export default function CheckInToneScreen() {
   const handleContinue = async () => {
     if (isSubmitting || showTransition) return;
 
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
-      
-      // Small delay to ensure state is set before showing transition
-      setTimeout(() => {
-        try {
-          setShowTransition(true);
-        } catch (error) {
-          console.error("Error showing transition:", error);
-        }
-      }, 50);
-      
-      // Run async operations in the background
-      (async () => {
-        try {
-        // Always save check-in data locally first
-        try {
-          await SecureStore.setItemAsync("checkInTone", selectedTone);
-          if (selectedEmotions.length > 0) {
-            await SecureStore.setItemAsync("checkInEmotions", JSON.stringify(selectedEmotions));
-          }
-        } catch (localError) {
-          console.error("Failed to save check-in locally:", localError);
-        }
-
-        // Try to submit to API (but don't block if it fails)
-        if (selectedEmotions.length > 0) {
-          try {
-            await submitCheckIn(
-              selectedEmotions as any,
-              selectedTone as any
-            );
-          } catch (error: any) {
-            console.error("Failed to submit check-in to API:", error);
-            // Check if it's a network error
-            const isNetworkError = error.message?.includes('Network Error') || 
-                                  error.code === 'ERR_NETWORK' ||
-                                  !error.response;
-            
-            if (isNetworkError) {
-              // Network error - backend might not be running
-              console.warn("Backend API not available. Check-in saved locally only.");
-            } else {
-              // Other API error
-              console.warn("API error:", error.response?.status, error.response?.data);
-            }
-            // Continue anyway - data is saved locally
+      // Authoritative source: SecureStore (React state can lag behind navigation / fast taps)
+      let emotionsForCheckIn = selectedEmotions;
+      try {
+        const emotionsJson = await SecureStore.getItemAsync("checkInEmotions");
+        if (emotionsJson) {
+          const parsed = JSON.parse(emotionsJson) as unknown;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            emotionsForCheckIn = parsed as string[];
+            setSelectedEmotions(emotionsForCheckIn);
           }
         }
+      } catch (e) {
+        console.error("Failed to read check-in emotions from storage:", e);
+      }
 
-        // Fetch initial AI response based on check-in data
-        // This will be displayed in the chat screen
-        if (selectedEmotions.length > 0) {
-          try {
-            // Create a message that references the check-in
-            const emotionLabels: { [key: string]: string } = {
-              loneliness: "lonely",
-              fear: "afraid",
-              anxiety: "anxious",
-              guilt: "guilty",
-              sadness: "sad",
-              anger: "angry",
-              grief: "grieving",
-              relationships: "struggling with relationships",
-            };
-            
-            const emotionText = selectedEmotions
-              .map((e) => emotionLabels[e] || e)
-              .join(", ");
-            
-            const initialMessage = `I just completed my check-in. I'm feeling ${emotionText}. Can you help me?`;
-            
-            // Send message to API with context
-            const chatResponse = await sendChatMessage({
-              message: initialMessage,
-              includeContext: true, // This will use the check-in data
-            });
-            
-            // Store the response to display in chat screen (include the user message too)
+      try {
+        await SecureStore.setItemAsync("checkInTone", selectedTone);
+        if (emotionsForCheckIn.length > 0) {
+          await SecureStore.setItemAsync("checkInEmotions", JSON.stringify(emotionsForCheckIn));
+        }
+      } catch (localError) {
+        console.error("Failed to save check-in locally:", localError);
+      }
+
+      if (emotionsForCheckIn.length > 0) {
+        try {
+          await submitCheckIn(emotionsForCheckIn as any, selectedTone as any);
+        } catch (error: unknown) {
+          console.error("Failed to submit check-in to API:", error);
+        }
+
+        const emotionText = formatEmotionPhrase(emotionsForCheckIn);
+        const initialMessage = `I just completed my check-in. I'm feeling ${emotionText}. Can you help me?`;
+
+        try {
+          const chatResponse = await sendChatMessage({
+            message: initialMessage,
+            includeContext: true,
+          });
+          await SecureStore.setItemAsync(
+            "pendingChatResponse",
+            JSON.stringify({
+              userMessage: initialMessage,
+              response: chatResponse.response,
+              conversationId: chatResponse.conversationId,
+            })
+          );
+          if (chatResponse.conversationId) {
+            await SecureStore.setItemAsync("currentConversationId", chatResponse.conversationId);
+          }
+        } catch (error: unknown) {
+          const err = error as { response?: { status?: number; data?: { error?: string } } };
+          if (err.response?.status === 402 && err.response?.data?.error === "paywall") {
             await SecureStore.setItemAsync(
               "pendingChatResponse",
               JSON.stringify({
                 userMessage: initialMessage,
-                response: chatResponse.response,
-                conversationId: chatResponse.conversationId,
+                response: {
+                  id: `paywall_${Date.now()}`,
+                  text: "I've received your check-in. To keep chatting with Grace, upgrade when you're ready—you'll see the option in chat.",
+                  timestamp: new Date().toISOString(),
+                },
+                conversationId: undefined,
               })
             );
-            
-            // Store conversation ID for future messages
-            if (chatResponse.conversationId) {
-              await SecureStore.setItemAsync("currentConversationId", chatResponse.conversationId);
-            }
-          } catch (error: any) {
-            if (error.response?.status === 402 && error.response?.data?.error === "paywall") {
-              // Free chat limit reached; user will see paywall when chat opens
-              if (__DEV__) {
-                console.log("Chat paywall: skipping initial message (user at free limit)");
-              }
-            } else {
-              console.error("Failed to fetch initial chat response:", error);
-            }
-            // Continue anyway - user can still open chat (and see paywall if over limit)
+          } else {
+            console.error("Failed to fetch initial chat response:", error);
+            await SecureStore.setItemAsync(
+              "pendingChatResponse",
+              JSON.stringify({
+                userMessage: initialMessage,
+                response: {
+                  id: `offline_${Date.now()}`,
+                  text: `Thank you for sharing that you're feeling ${emotionText}. I'm here with you. We couldn't load a full reply just now—try sending another message when you're back online, and I'll walk with you through this.`,
+                  timestamp: new Date().toISOString(),
+                },
+                conversationId: undefined,
+              })
+            );
           }
         }
+      }
 
-        // Clear the emotions from SecureStore after processing
-        try {
-          await SecureStore.deleteItemAsync("checkInEmotions");
-        } catch (error) {
-          console.error("Failed to clear emotions:", error);
-        }
-        } catch (error) {
-          console.error("Error in background check-in processing:", error);
-        } finally {
-          setIsSubmitting(false);
-        }
-      })();
+      try {
+        await SecureStore.deleteItemAsync("checkInEmotions");
+      } catch (error) {
+        console.error("Failed to clear emotions:", error);
+      }
+
+      setShowTransition(true);
     } catch (error) {
       console.error("Error in handleContinue:", error);
+    } finally {
       setIsSubmitting(false);
-      // Still show transition even on error
-      if (!showTransition) {
-        setShowTransition(true);
-      }
     }
   };
 

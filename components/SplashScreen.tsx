@@ -1,7 +1,5 @@
 /**
- * Custom Splash Screen Component
- * Inspired by the app icon - rose in a transparent cube
- * Features elegant animations and comforting design
+ * Custom splash — matches current app icon, restrained editorial feel.
  */
 
 import { COLORS } from "@/constants/colors";
@@ -10,303 +8,232 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect } from "react";
-import { Dimensions, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, {
-    Easing,
-    FadeIn,
-    FadeInDown,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming,
+  Easing,
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
 } from "react-native-reanimated";
 
-const { width, height } = Dimensions.get("window");
-
 const AnimatedView = Animated.createAnimatedComponent(View);
-const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 export default function CustomSplashScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Animation values
-  const iconScale = useSharedValue(0.8);
   const iconOpacity = useSharedValue(0);
-  const iconRotation = useSharedValue(0);
-  const cubeScale = useSharedValue(1);
-  const cubeRotation = useSharedValue(0);
-  const glowOpacity = useSharedValue(0.3);
-  const textOpacity = useSharedValue(0);
-  const particles = useSharedValue(0);
+  const iconScale = useSharedValue(0.92);
+  const haloOpacity = useSharedValue(0);
+  const lineWidth = useSharedValue(0);
 
   const textColor = isDark ? COLORS.textDark : COLORS.textLight;
-  const placeholderColor = isDark ? COLORS.placeholderDark : COLORS.placeholderLight;
+  const mutedColor = isDark ? COLORS.placeholderDark : COLORS.placeholderLight;
 
   useEffect(() => {
-    // Icon entrance animation
-    iconOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.ease) });
-    iconScale.value = withSpring(1, { damping: 12, stiffness: 100 });
-
-    // Gentle rotation for the cube effect
-    cubeRotation.value = withRepeat(
-      withSequence(
-        withTiming(5, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-5, { duration: 3000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
+    haloOpacity.value = withDelay(
+      100,
+      withTiming(1, { duration: 1200, easing: Easing.out(Easing.cubic) })
     );
-
-    // Subtle pulse for the cube
-    cubeScale.value = withRepeat(
-      withSequence(
-        withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
+    iconOpacity.value = withDelay(
+      80,
+      withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) })
     );
-
-    // Glow pulse
-    glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.5, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.3, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
+    iconScale.value = withDelay(
+      80,
+      withTiming(1, { duration: 1000, easing: Easing.out(Easing.cubic) })
     );
-
-    // Text fade in
-    textOpacity.value = withTiming(1, { duration: 1000, delay: 400, easing: Easing.out(Easing.ease) });
-
-    // Particles animation
-    particles.value = withRepeat(
-      withTiming(1, { duration: 4000, easing: Easing.linear }),
-      -1,
-      false
+    lineWidth.value = withDelay(
+      500,
+      withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) })
     );
-  }, []);
+  }, [haloOpacity, iconOpacity, iconScale, lineWidth]);
 
-  const iconAnimatedStyle = useAnimatedStyle(() => ({
+  const iconWrapStyle = useAnimatedStyle(() => ({
     opacity: iconOpacity.value,
-    transform: [
-      { scale: iconScale.value },
-      { rotate: `${iconRotation.value}deg` },
-    ],
+    transform: [{ scale: iconScale.value }],
   }));
 
-  const cubeAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: cubeScale.value },
-      { rotate: `${cubeRotation.value}deg` },
-    ],
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: haloOpacity.value * 0.85,
   }));
 
-  const glowAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-  }));
-
-  const textAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
+  const ruleStyle = useAnimatedStyle(() => ({
+    opacity: lineWidth.value,
+    transform: [{ scaleX: lineWidth.value }],
   }));
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? COLORS.backgroundDark : COLORS.backgroundLight }]}>
-      {/* Background Gradient - Soft pastel colors matching the icon */}
+      {/* Base wash */}
       <LinearGradient
         colors={
           isDark
-            ? [
-                COLORS.backgroundDark,
-                COLORS.primaryDark + "15",
-                COLORS.accentDark + "10",
-                COLORS.backgroundDark,
-              ]
-            : [
-                COLORS.backgroundLight,
-                "#FFE8E0", // Soft peach
-                "#E8E0FF", // Soft lavender
-                COLORS.backgroundLight,
-              ]
+            ? [COLORS.backgroundDark, "#152030", COLORS.backgroundDark]
+            : [COLORS.backgroundLight, "#F3F0EA", COLORS.backgroundLight]
         }
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        locations={[0, 0.45, 1]}
+        start={{ x: 0.15, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Decorative floating particles */}
-      <AnimatedView style={styles.particlesContainer}>
-        {[...Array(6)].map((_, i) => (
-          <AnimatedView
-            key={i}
+      {/* Soft radial highlight */}
+      <LinearGradient
+        colors={
+          isDark
+            ? ["transparent", COLORS.primaryDark + "18", "transparent"]
+            : ["transparent", COLORS.gold + "12", "transparent"]
+        }
+        start={{ x: 0.5, y: 0.35 }}
+        end={{ x: 0.5, y: 0.85 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Edge vignette */}
+      <LinearGradient
+        colors={
+          isDark
+            ? [COLORS.shadowBlack + "55", "transparent", COLORS.shadowBlack + "40"]
+            : ["rgba(255,255,255,0.5)", "transparent", "rgba(0,0,0,0.04)"]
+        }
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+
+      <Animated.View entering={FadeIn.duration(500)} style={styles.center}>
+        <AnimatedView style={[styles.halo, haloStyle]}>
+          <LinearGradient
+            colors={[COLORS.primary + "35", COLORS.secondary + "18", COLORS.accent + "22"]}
+            start={{ x: 0.2, y: 0 }}
+            end={{ x: 0.8, y: 1 }}
+            style={styles.haloGradient}
+          />
+        </AnimatedView>
+
+        <AnimatedView style={[styles.iconShadow, iconWrapStyle]}>
+          <View
             style={[
-              styles.particle,
+              styles.iconFrame,
               {
-                left: `${15 + i * 15}%`,
-                top: `${20 + (i % 3) * 25}%`,
-                backgroundColor: i % 2 === 0 ? COLORS.primary + "20" : COLORS.secondary + "20",
+                borderColor: isDark ? COLORS.white20 : "rgba(255,255,255,0.85)",
+                backgroundColor: isDark ? COLORS.elementDark : COLORS.surface,
               },
             ]}
-          />
-        ))}
-      </AnimatedView>
-
-      {/* Main Content */}
-      <Animated.View entering={FadeIn.duration(600)} style={styles.content}>
-        {/* Glow effect behind icon */}
-        <AnimatedView style={[styles.glowContainer, glowAnimatedStyle, cubeAnimatedStyle]}>
-          <LinearGradient
-            colors={[
-              COLORS.primary + "30",
-              COLORS.secondary + "20",
-              COLORS.accent + "25",
-            ]}
-            style={styles.glow}
-          />
+          >
+            <Image
+              source={require("@/assets/images/icon.png")}
+              style={styles.icon}
+              contentFit="contain"
+              transition={200}
+            />
+          </View>
         </AnimatedView>
 
-        {/* Icon Container with Cube Effect */}
-        <AnimatedView style={[styles.iconContainer, cubeAnimatedStyle]}>
-          {/* Transparent cube border effect */}
-          <AnimatedView style={[styles.cubeBorder, { borderColor: COLORS.gold + "40" }]} />
-          
-          {/* App Icon */}
-          <AnimatedImage
-            source={require("@/assets/images/icon.png")}
-            style={[styles.icon, iconAnimatedStyle]}
-            contentFit="contain"
-            transition={300}
-          />
-        </AnimatedView>
-
-        {/* App Name */}
         <Animated.Text
-          entering={FadeInDown.delay(500).duration(800)}
-          style={[styles.appName, { color: textColor }, textAnimatedStyle]}
+          entering={FadeInDown.delay(280).duration(700)}
+          style={[styles.wordmark, { color: textColor }]}
         >
           GraceGuide
         </Animated.Text>
 
-        {/* Tagline */}
-        <Animated.Text
-          entering={FadeInDown.delay(700).duration(800)}
-          style={[styles.tagline, { color: placeholderColor }, textAnimatedStyle]}
-        >
-          Your guide to grace and wisdom
-        </Animated.Text>
-      </Animated.View>
+        <AnimatedView style={[styles.ruleWrap, ruleStyle]}>
+          <LinearGradient
+            colors={[COLORS.gold + "00", COLORS.gold, COLORS.gold + "00"]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.rule}
+          />
+        </AnimatedView>
 
-      {/* Bottom decorative elements */}
-      <Animated.View
-        entering={FadeIn.delay(1000).duration(1000)}
-        style={styles.bottomDecorations}
-      >
-        <View style={[styles.decorativeCircle, { backgroundColor: COLORS.primary + "10" }]} />
-        <View style={[styles.decorativeCircle, styles.decorativeCircle2, { backgroundColor: COLORS.secondary + "08" }]} />
+        <Animated.Text
+          entering={FadeInDown.delay(420).duration(700)}
+          style={[styles.tagline, { color: mutedColor }]}
+        >
+          Scripture · reflection · gentle guidance
+        </Animated.Text>
       </Animated.View>
     </View>
   );
 }
+
+const ICON = 132;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
   },
-  content: {
+  center: {
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 32,
     zIndex: 2,
   },
-  particlesContainer: {
-    position: "absolute",
-    width: width,
-    height: height,
-    zIndex: 0,
-  },
-  particle: {
-    position: "absolute",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    opacity: 0.4,
-  },
-  glowContainer: {
+  halo: {
     position: "absolute",
     width: 280,
     height: 280,
     borderRadius: 140,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1,
+    overflow: "hidden",
   },
-  glow: {
+  haloGradient: {
     width: "100%",
     height: "100%",
     borderRadius: 140,
   },
-  iconContainer: {
-    width: 200,
-    height: 200,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 40,
-    position: "relative",
-    zIndex: 2,
+  iconShadow: {
+    marginBottom: 36,
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 14,
   },
-  cubeBorder: {
-    position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 24,
-    borderWidth: 2,
-    opacity: 0.3,
+  iconFrame: {
+    width: ICON + 8,
+    height: ICON + 8,
+    borderRadius: 36,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    padding: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
   icon: {
-    width: 200,
-    height: 200,
-    borderRadius: 20,
+    width: ICON,
+    height: ICON,
+    borderRadius: 28,
   },
-  appName: {
-    fontSize: 42,
-    fontWeight: "700",
-    letterSpacing: -0.5,
+  wordmark: {
+    fontSize: 36,
+    fontWeight: "600",
+    letterSpacing: 2,
     fontFamily: FONTS.header,
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: "center",
+  },
+  ruleWrap: {
+    width: 120,
+    height: 2,
+    marginBottom: 18,
+    overflow: "hidden",
+  },
+  rule: {
+    flex: 1,
+    borderRadius: 1,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "400",
-    letterSpacing: 0.4,
+    letterSpacing: 3.2,
+    textTransform: "uppercase",
     textAlign: "center",
-    paddingHorizontal: 40,
-    lineHeight: 24,
-  },
-  bottomDecorations: {
-    position: "absolute",
-    bottom: 60,
-    width: width,
-    height: 200,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 0,
-  },
-  decorativeCircle: {
-    position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  decorativeCircle2: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
+    lineHeight: 22,
   },
 });

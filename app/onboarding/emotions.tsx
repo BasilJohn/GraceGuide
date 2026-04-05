@@ -80,8 +80,7 @@ export default function EmotionSelectorScreen() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      // If no previous screen, navigate to home
-      router.replace("/(tabs)");
+      router.replace("/onboarding");
     }
   };
 

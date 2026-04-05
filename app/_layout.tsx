@@ -55,7 +55,7 @@ function AuthGate() {
   }
 
   if (onboardingCompleted === false) {
-    return <Redirect href="/onboarding/emotions" />;
+    return <Redirect href="/onboarding" />;
   }
 
   return <Redirect href="/(tabs)" />;
