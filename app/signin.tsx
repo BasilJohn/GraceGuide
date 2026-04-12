@@ -1,12 +1,10 @@
 import { COLORS } from "@/constants/colors";
 import { FONTS } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Ionicons } from "@expo/vector-icons";
-import AntDesign from "@expo/vector-icons/build/AntDesign";
+import { AntDesign, Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect } from "react";
 import {
-  Dimensions,
   Platform,
   StyleSheet,
   Text,
@@ -29,8 +27,6 @@ import { useSignInContainer } from "../hooks/useSignIn";
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 const AnimatedView = Animated.createAnimatedComponent(View);
-
-const { width } = Dimensions.get("window");
 
 export default function SignInScreen() {
   const { handleSignIn, handleAppleSignIn, isLoading } = useSignInContainer();

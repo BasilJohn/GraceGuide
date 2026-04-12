@@ -3,11 +3,17 @@ import { FONTS } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
-import { Redirect, Stack, useRouter } from "expo-router";
+import { Stack, useNavigationContainerRef, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
-import { Platform, TouchableOpacity } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  InteractionManager,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import LoadingScreen from "../components/LoadingScreen";
 import CustomSplashScreen from "../components/SplashScreen";
 import { AuthProvider, useAuth } from "../context/AuthContext";
@@ -16,8 +22,11 @@ import QueryProvider from "../providers/QueryProvider";
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
-function AuthGate() {
+function AuthGate({ splashDismissed }: { splashDismissed: boolean }) {
   const { user, loading } = useAuth();
+  const router = useRouter();
+  const navigationRef = useNavigationContainerRef();
+  const lastNavTargetRef = useRef<string | null>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
 
@@ -44,21 +53,71 @@ function AuthGate() {
     }
   }, [user, loading]);
 
-  // Show loading while checking auth and onboarding
+  // Wait for splash overlay to dismiss so linking can complete. Defer navigation until the
+  // native stack has settled — replacing too early after splash can crash release builds.
+  useEffect(() => {
+    if (!splashDismissed || loading || checkingOnboarding) {
+      return;
+    }
+    if (user && onboardingCompleted === null) {
+      return;
+    }
+
+    let cancelled = false;
+    let rafId: number | null = null;
+    let cancelInteraction: (() => void) | undefined;
+
+    const runNavigation = () => {
+      if (cancelled) return;
+      const target = !user
+        ? "/signin"
+        : onboardingCompleted === false
+          ? "/onboarding"
+          : "/(tabs)";
+      if (lastNavTargetRef.current === target) return;
+      lastNavTargetRef.current = target;
+      try {
+        router.replace(target as "/signin" | "/onboarding" | "/(tabs)");
+      } catch {
+        lastNavTargetRef.current = null;
+      }
+    };
+
+    const afterReady = () => {
+      if (cancelled) return;
+      if (!navigationRef.isReady()) {
+        rafId = requestAnimationFrame(afterReady);
+        return;
+      }
+      const task = InteractionManager.runAfterInteractions(() => {
+        if (cancelled) return;
+        requestAnimationFrame(runNavigation);
+      });
+      cancelInteraction = () => task.cancel?.();
+    };
+
+    afterReady();
+
+    return () => {
+      cancelled = true;
+      if (rafId != null) cancelAnimationFrame(rafId);
+      cancelInteraction?.();
+    };
+  }, [
+    splashDismissed,
+    user,
+    loading,
+    checkingOnboarding,
+    onboardingCompleted,
+    router,
+    navigationRef,
+  ]);
+
   if (loading || checkingOnboarding) {
     return <LoadingScreen />;
   }
 
-  // Simple declarative redirects - like ShelfScan
-  if (!user) {
-    return <Redirect href="/signin" />;
-  }
-
-  if (onboardingCompleted === false) {
-    return <Redirect href="/onboarding" />;
-  }
-
-  return <Redirect href="/(tabs)" />;
+  return null;
 }
 
 function CustomBackButton() {
@@ -105,9 +164,10 @@ function StackWithHeaders() {
   const borderColor = colorScheme === "dark" ? COLORS.borderDark : COLORS.borderLight;
 
   return (
-    <Stack 
-      screenOptions={{ 
-        headerShown: false 
+    <Stack
+      initialRouteName="signin"
+      screenOptions={{
+        headerShown: false,
       }}
     >
       <Stack.Screen name="signin" />
@@ -196,18 +256,30 @@ export default function RootLayout() {
     hideSplash();
   }, [fontsLoaded, fontError]);
 
-  // Show custom splash screen initially
-  if (showSplash) {
-    return <CustomSplashScreen />;
-  }
-
-  // Always render the app - fonts will be used when available
+  // Keep Stack + NavigationContainer mounted from the first frame. Returning only the splash
+  // screen here used to unmount the navigator until the timer fired, which breaks linking /
+  // isReady() timing and can crash release builds.
   return (
     <QueryProvider>
       <AuthProvider>
         <StackWithHeaders />
-        <AuthGate />
+        <AuthGate splashDismissed={!showSplash} />
+        {showSplash ? (
+          <View
+            style={[StyleSheet.absoluteFill, styles.splashOverlay]}
+            pointerEvents="auto"
+          >
+            <CustomSplashScreen />
+          </View>
+        ) : null}
       </AuthProvider>
     </QueryProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  splashOverlay: {
+    zIndex: 9999,
+    elevation: 9999,
+  },
+});

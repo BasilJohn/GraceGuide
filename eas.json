@@ -22,7 +22,8 @@
     "production": {
       "ios": {
         "simulator": false,
-        "autoIncrement": true
+        "autoIncrement": true,
+        "buildArtifactPaths": ["ios/build/*"]
       },
       "android": {
         "gradleCommand": ":app:bundleRelease"
