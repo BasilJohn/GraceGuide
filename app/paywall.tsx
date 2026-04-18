@@ -3,6 +3,7 @@ import { COLORS } from "@/constants/colors";
 import { FONTS } from "@/constants/fonts";
 import { PRICING } from "@/constants/pricing";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -11,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,30 +24,100 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PaywallScreen() {
   const router = useRouter();
+  const {
+    offerings,
+    isLoading: rcLoading,
+    purchasePackage: purchaseRC,
+    restorePurchases: restoreRC,
+    isConfigured: isRevenueCatConfigured,
+  } = useRevenueCat();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const [purchasing, setPurchasing] = useState<"monthly" | "yearly" | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  const monthlyPkg = offerings?.monthly ?? null;
+  const annualPkg = offerings?.annual ?? null;
 
   const textColor = isDark ? COLORS.textDark : COLORS.textLight;
   const placeholderColor = isDark ? COLORS.placeholderDark : COLORS.placeholderLight;
   const elementBg = isDark ? COLORS.elementDark : COLORS.elementLight;
   const borderColor = isDark ? COLORS.borderDark : COLORS.borderLight;
 
+  const loadingOfferings =
+    Platform.OS !== "web" &&
+    isRevenueCatConfigured &&
+    !offerings &&
+    rcLoading;
+
   const handleSelectPlan = async (plan: "monthly" | "yearly") => {
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "Mobile only",
+        "Subscriptions are purchased through the App Store or Google Play. Open GraceGuide on your phone to subscribe."
+      );
+      return;
+    }
+
+    const pkg = plan === "monthly" ? monthlyPkg : annualPkg;
+    if (!pkg) {
+      Alert.alert(
+        "Unavailable",
+        "Could not load subscription options. Check your connection, RevenueCat offering (monthly & annual packages), and try again."
+      );
+      return;
+    }
+
     setPurchasing(plan);
     try {
-      // TODO: Wire to your payment provider (Stripe, RevenueCat, in-app purchase)
-      // Example: await purchaseSubscription(plan);
-      await new Promise((r) => setTimeout(r, 800));
-      Alert.alert(
-        "Coming soon",
-        `Premium ${plan === "monthly" ? "monthly" : "yearly"} purchase will be available here. Connect your payment provider to enable.`,
-        [{ text: "OK" }]
-      );
-    } catch (error) {
-      Alert.alert("Error", "Something went wrong. Please try again.");
+      const result = await purchaseRC(pkg);
+      if (result.success) {
+        Alert.alert("Welcome to Premium", "Thank you for supporting GraceGuide.", [
+          {
+            text: "OK",
+            onPress: () => {
+              if (router.canGoBack()) router.back();
+              else router.replace("/(tabs)");
+            },
+          },
+        ]);
+      } else if (result.error !== "Purchase cancelled") {
+        Alert.alert("Purchase failed", result.error ?? "Something went wrong. Please try again.");
+      }
     } finally {
       setPurchasing(null);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "Mobile only",
+        "Restore purchases is available in the iOS or Android app."
+      );
+      return;
+    }
+    setRestoring(true);
+    try {
+      const result = await restoreRC();
+      if (result.success) {
+        Alert.alert("Restored", "Your Premium access is active.", [
+          {
+            text: "OK",
+            onPress: () => {
+              if (router.canGoBack()) router.back();
+              else router.replace("/(tabs)");
+            },
+          },
+        ]);
+      } else {
+        Alert.alert(
+          "No subscription found",
+          result.error ?? "We could not find an active subscription for this store account."
+        );
+      }
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -56,6 +128,10 @@ export default function PaywallScreen() {
       router.replace("/(tabs)");
     }
   };
+
+  const yearlyPriceLabel = annualPkg?.product.priceString ?? PRICING.yearly.priceLabel;
+  const monthlyPriceLabel = monthlyPkg?.product.priceString ?? PRICING.monthly.priceLabel;
+  const plansBusy = loadingOfferings || !!purchasing || restoring;
 
   return (
     <GradientBackground useSafeArea={false}>
@@ -103,6 +179,11 @@ export default function PaywallScreen() {
               Unlimited chat with Grace, daily scripture, devotionals, and full
               access to all features.
             </Text>
+            {Platform.OS === "web" ? (
+              <Text style={[styles.webNotice, { color: placeholderColor }]}>
+                In-app subscriptions are available on the iOS and Android apps.
+              </Text>
+            ) : null}
           </Animated.View>
 
           {/* Yearly plan - recommended */}
@@ -113,7 +194,7 @@ export default function PaywallScreen() {
             <TouchableOpacity
               onPress={() => handleSelectPlan("yearly")}
               activeOpacity={0.85}
-              disabled={!!purchasing}
+              disabled={plansBusy}
               style={[
                 styles.planCard,
                 {
@@ -141,14 +222,16 @@ export default function PaywallScreen() {
                 </View>
                 <View style={styles.planPriceBlock}>
                   <Text style={[styles.planPrice, { color: COLORS.primary }]}>
-                    {PRICING.yearly.priceLabel}
+                    {yearlyPriceLabel}
                   </Text>
                   <Text style={[styles.planInterval, { color: placeholderColor }]}>
                     /year
                   </Text>
                 </View>
               </View>
-              {purchasing === "yearly" ? (
+              {loadingOfferings ? (
+                <ActivityIndicator color={COLORS.primary} style={styles.planLoader} />
+              ) : purchasing === "yearly" ? (
                 <ActivityIndicator color={COLORS.primary} style={styles.planLoader} />
               ) : (
                 <Text style={[styles.planCta, { color: COLORS.primary }]}>
@@ -166,7 +249,7 @@ export default function PaywallScreen() {
             <TouchableOpacity
               onPress={() => handleSelectPlan("monthly")}
               activeOpacity={0.85}
-              disabled={!!purchasing}
+              disabled={plansBusy}
               style={[
                 styles.planCard,
                 {
@@ -186,14 +269,16 @@ export default function PaywallScreen() {
                 </View>
                 <View style={styles.planPriceBlock}>
                   <Text style={[styles.planPrice, { color: textColor }]}>
-                    {PRICING.monthly.priceLabel}
+                    {monthlyPriceLabel}
                   </Text>
                   <Text style={[styles.planInterval, { color: placeholderColor }]}>
                     /month
                   </Text>
                 </View>
               </View>
-              {purchasing === "monthly" ? (
+              {loadingOfferings ? (
+                <ActivityIndicator color={COLORS.primary} style={styles.planLoader} />
+              ) : purchasing === "monthly" ? (
                 <ActivityIndicator color={COLORS.primary} style={styles.planLoader} />
               ) : (
                 <Text style={[styles.planCta, { color: textColor }]}>
@@ -228,6 +313,23 @@ export default function PaywallScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {Platform.OS !== "web" ? (
+            <TouchableOpacity
+              onPress={handleRestore}
+              activeOpacity={0.7}
+              disabled={plansBusy}
+              style={styles.restoreWrap}
+            >
+              {restoring ? (
+                <ActivityIndicator color={COLORS.primary} />
+              ) : (
+                <Text style={[styles.restoreLink, { color: COLORS.primary }]}>
+                  Restore purchases
+                </Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </GradientBackground>
@@ -293,6 +395,11 @@ const styles = StyleSheet.create({
   heroSubtitle: {
     fontSize: 16,
     lineHeight: 24,
+  },
+  webNotice: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 12,
   },
   planCardWrapper: {
     marginBottom: 16,
@@ -380,5 +487,16 @@ const styles = StyleSheet.create({
   legalBullet: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  restoreWrap: {
+    alignItems: "center",
+    marginTop: 20,
+    minHeight: 24,
+    justifyContent: "center",
+  },
+  restoreLink: {
+    fontSize: 15,
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
 });

@@ -20,6 +20,8 @@ export interface AuthContextType {
   tokens: AuthTokens | null;
   signIn: (user: User, tokens: AuthTokens) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Refetch profile from `auth/getUser` and update local user state (e.g. after IAP). */
+  refreshUser: () => Promise<User>;
   loading: boolean;
 }
 

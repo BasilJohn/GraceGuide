@@ -17,6 +17,7 @@ import {
 import LoadingScreen from "../components/LoadingScreen";
 import CustomSplashScreen from "../components/SplashScreen";
 import { AuthProvider, useAuth } from "../context/AuthContext";
+import { initializeRevenueCat } from "../lib/revenuecat";
 import QueryProvider from "../providers/QueryProvider";
 
 // Keep the splash screen visible while we fetch resources
@@ -37,7 +38,7 @@ function AuthGate({ splashDismissed }: { splashDismissed: boolean }) {
         try {
           const completed = await SecureStore.getItemAsync("onboardingCompleted");
           setOnboardingCompleted(completed === "true");
-        } catch (error) {
+        } catch {
           setOnboardingCompleted(false);
         }
       } else {
@@ -52,6 +53,15 @@ function AuthGate({ splashDismissed }: { splashDismissed: boolean }) {
       setCheckingOnboarding(true);
     }
   }, [user, loading]);
+
+  // RevenueCat: configure + logIn — same pattern as ShelfScan (separate app; shared approach).
+  useEffect(() => {
+    if (user?.id) {
+      initializeRevenueCat(user.id).catch(() => {
+        // optional when keys or native module unavailable
+      });
+    }
+  }, [user?.id]);
 
   // Wait for splash overlay to dismiss so linking can complete. Defer navigation until the
   // native stack has settled — replacing too early after splash can crash release builds.

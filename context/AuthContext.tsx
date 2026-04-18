@@ -1,4 +1,6 @@
 import { clearTokens, saveTokens } from "@/lib/api";
+import { getUser } from "@/lib/appApi";
+import { syncRevenueCatAppUser } from "@/lib/revenuecat";
 import { AuthContextType, AuthTokens, User } from "@/types/types";
 import * as SecureStore from "expo-secure-store";
 import React, {
@@ -125,8 +127,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const updatedUser = await getUser();
+    await SecureStore.setItemAsync("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    return updatedUser;
+  }, []);
+
   // Sign out (clear all auth data)
   const signOut = useCallback(async () => {
+    await syncRevenueCatAppUser(null);
     clearTokens();
     try {
       await Promise.all([SecureStore.deleteItemAsync("user")]);
@@ -138,7 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, tokens, signIn, signOut, loading }}>
+    <AuthContext.Provider
+      value={{ user, tokens, signIn, signOut, refreshUser, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );

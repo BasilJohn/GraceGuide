@@ -16,5 +16,11 @@ module.exports = ({ config }) => {
   return {
     ...config,
     plugins,
+    extra: {
+      ...(config.extra ?? {}),
+      revenueCatIosApiKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY ?? "",
+      revenueCatAndroidApiKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY ?? "",
+      revenueCatEntitlementId: process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? "premium",
+    },
   };
 };
